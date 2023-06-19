@@ -153,17 +153,4 @@ for line in paths:
 	eventPath = eventDir + line.strip('\n\r')
 	split_csv(dataPath, eventPath)	
 
-'''
-            print(
-                "\n row_num: "
-                + str(row_num)
-                + " T: "
-                + currentRowT
-                + " start Row: "
-                + str(start_row)
-                + ", end row: "
-                + str(end_row)
-                + "\n"
-            )
-'''
 print("Done")
