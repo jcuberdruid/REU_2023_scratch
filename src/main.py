@@ -1,5 +1,6 @@
 import numpy as np
 import csv
+import random
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import tensorflow as tf
@@ -12,15 +13,29 @@ npy_label_1 = "../data/datasets/sequences/MI_RLH_T1.npy"
 csv_label_2 = "../data/datasets/sequences/MI_RLH_T2_annotation.csv"
 npy_label_2 = "../data/datasets/sequences/MI_RLH_T2.npy"
 
-thisSubject = 9
+def generate_random_numbers():
+    numbers = []
+    while len(numbers) < 25:
+        random_num = random.randint(1, 86)
+        if random_num not in numbers:
+            numbers.append(random_num)
+    return numbers
 
-def get_indices_for_subject(csv_file, subject):
+
+subjects = generate_random_numbers()
+
+print(subjects)
+
+#thisSubject = 9
+
+def get_indices_for_subject(csv_file, subjects):
     indices = []
     with open(csv_file, 'r') as file:
         reader = csv.DictReader(file)
         for row in reader:
-            if int(row['subject']) == subject:  # Convert subject to integer
-                indices.append(int(row['index']))
+            for subject in subjects:
+                if int(row['subject']) == subject and int(row['index'])%9 != 0:  # Convert subject to integer
+                     indices.append(int(row['index']))
     return indices
 
 def data_for_subject(npy_file, indices):
@@ -30,9 +45,11 @@ def data_for_subject(npy_file, indices):
         npySubSet.append(npyLoad[x])
     return npySubSet
 
+indices_label_1 = get_indices_for_subject(csv_label_1, subjects)
+indices_label_2 = get_indices_for_subject(csv_label_2, subjects)
 
-indices_label_1 = get_indices_for_subject(csv_label_1, thisSubject)
-indices_label_2 = get_indices_for_subject(csv_label_2, thisSubject)
+print(len(indices_label_1))
+print(len(indices_label_2))
 
 npyData_label_1 = np.array(data_for_subject(npy_label_1, indices_label_1))
 npyData_label_2 = np.array(data_for_subject(npy_label_2, indices_label_2))
@@ -47,6 +64,8 @@ np.save('label_2.npy', npyData_label_2)
 # Load label_1 and label_2 data from .npy files
 data_label_1 = np.load('label_1.npy')
 data_label_2 = np.load('label_2.npy')
+
+print(type(data_label_1))
 
 # Concatenate data and labels
 data = np.concatenate([data_label_1, data_label_2], axis=0)
@@ -63,15 +82,16 @@ data_normalized = scaler.fit_transform(data_2d)
 data_normalized = data_normalized.reshape(data.shape)
 
 # Shuffle the order of frames within each sample
-np.random.shuffle(data_normalized)
+#np.random.shuffle(data_normalized) ##XXX this hurts performance 
 
 # Split the data into training and testing sets
 train_data, test_data, train_labels, test_labels = train_test_split(
-    data_normalized, labels, test_size=0.1, random_state=42)
+    data_normalized, labels, test_size=0.2, random_state=42)
 
 # Reshape the data to match the input shape for the 3D-CNN
 train_data = train_data.reshape((-1, 80, 17, 17, 1))
 test_data = test_data.reshape((-1, 80, 17, 17, 1))
+
 
 ###############################################################
 ###############################################################
