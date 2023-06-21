@@ -9,8 +9,6 @@ from keras.layers import Conv3D, Flatten, Dense, Dropout, Input
 from keras.models import Model
 from keras.optimizers import adam
 
-
-
 # generalization: specific output classes
 # output expirment data
 
@@ -55,7 +53,6 @@ print(f"number of subjects: {len(subjects)}")
 print(subjects)
 print(f"number of testingSubjects: {len(testingSubjects)}")
 print(testingSubjects)
-quit()
 
 def get_indices_for_subject(csv_file, subjects):
     indices = []
@@ -184,6 +181,9 @@ def classify(training_data_array, testing_data_array):
 
 	model= Model(inputs = input_layer, outputs = output_layer)
 	model.summary()
+	config = model.to_json()
+	print(type(config))
+	print(config)
 	#quit()
 
 ######################################################################
@@ -192,9 +192,9 @@ def classify(training_data_array, testing_data_array):
 
 	# Compile the model
 	model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-
+	#csv_logger = CSVLogger('log1.csv', separator=",", append=False) TODO logger not found 
 	# Train the model
-	model.fit(train_data, train_labels, epochs=100, batch_size=128, validation_data=(test_data, test_labels))
+	model.fit(train_data, train_labels, epochs=101, batch_size=128, validation_data=(test_data, test_labels))#, callbacks=[csv_logger])
 
 	# Evaluate the model
 	test_loss, test_accuracy = model.evaluate(test_data, test_labels)
