@@ -36,22 +36,26 @@ csv_label_4 = "../data/datasets/sequences/MI_FF_T2_annotation.csv"
 npy_label_4 = "../data/datasets/sequences/MI_FF_T2.npy"
 '''
 
-def generate_random_numbers(length):
-    numbers = []
-    while len(numbers) < length:
-        random_num = random.randint(1, 86)
-        if random_num not in numbers:
-            numbers.append(random_num)
-    return numbers
+def generate_random_numbers(length, trainingPercent):
+	subjects = [x for x in range(1, 110) if x not in [88, 92, 100, 104]]
+	random.shuffle(subjects)
+	testingSubjects = subjects.copy()
+	numTestingSubjects = int(length*trainingPercent)
+	while (len(testingSubjects) != numTestingSubjects):
+		testingSubjects.pop(0)
+	print(subjects)
+	print(len(subjects))
+	subjects = subjects[: len(subjects) - (105-length)]
+	return subjects, testingSubjects
+	
 
+subjects, testingSubjects = generate_random_numbers(20, 0.2)
 
-#subjects = generate_random_numbers(20)
-subjects = [x for x in range(1, 110) if x not in [88, 92, 100, 104]]
-random.shuffle(subjects)
-
-subjects = subjects[: len(subjects) - 85]
 print(f"number of subjects: {len(subjects)}")
 print(subjects)
+print(f"number of testingSubjects: {len(testingSubjects)}")
+print(testingSubjects)
+quit()
 
 def get_indices_for_subject(csv_file, subjects):
     indices = []
@@ -83,27 +87,17 @@ def create_data(csv_label, subjects, npy_label):
 
 data_1 = create_data(csv_label_1, subjects, npy_label_1)
 data_2 = create_data(csv_label_2, subjects, npy_label_2)
-#data_3 = create_data(csv_label_3, subjects, npy_label_3)
-#data_4 = create_data(csv_label_4, subjects, npy_label_4)
 
-
-#use the first two subjects (will be randomized) as testing set only with MM 
-test_data_1 = create_data(csv_label_1_MM, [subjects[0],subjects[1]], npy_label_1_MM)
-test_data_2 = create_data(csv_label_2_MM,  [subjects[0],subjects[1]], npy_label_2_MM)
-#test_data_3 = create_test_data(csv_label_3_MM, subjects, npy_label_3_MM)
-#test_data_4 = create_test_data(csv_label_4_MM, subjects, npy_label_4_MM)
+test_data_1 = create_data(csv_label_1_MM, testingSubjects, npy_label_1_MM)
+test_data_2 = create_data(csv_label_2_MM, testingSubjects, npy_label_2_MM)
 
 test_data = []
 test_data.append(test_data_1)
 test_data.append(test_data_2)
-#test_data.append(data_3_MM)
-#test_data.append(data_4_MM)
 
 data = []
 data.append(data_1)
 data.append(data_2)
-#data.append(data_3)
-#data.append(data_4)
 
 ###############################################################
 ###############################################################
