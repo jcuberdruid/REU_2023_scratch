@@ -199,6 +199,7 @@ def classify(training_data_array, testing_data_array):
 	model = Model(inputs=input_layer, outputs=output_layer)
 	model.summary()
 	config = model.to_json()
+	print(config)
 	JL.model_log(config)
 
 ######################################################################
