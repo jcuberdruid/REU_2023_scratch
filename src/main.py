@@ -8,26 +8,29 @@ import keras
 from keras.layers import Conv3D, Flatten, Dense, Dropout, Input
 from keras.models import Model
 from keras.optimizers import adam
+import jsonLog as JL
 
-import jsonLog.py as JL
-
+accuracy = None
+loss = None
 
 # generalization: specific output classes
 # output expirment data
 
-csv_label_1 = "../data/datasets/sequences/MI_RLH_T1_annotation.csv"
-npy_label_1 = "../data/datasets/sequences/MI_RLH_T1.npy"
+csv_label_1 = "../data/datasets/sequences/MM_RLH_T1_annotation.csv"
+npy_label_1 = "../data/datasets/sequences/MM_RLH_T1.npy"
 
-csv_label_2 = "../data/datasets/sequences/MI_RLH_T2_annotation.csv"
-npy_label_2 = "../data/datasets/sequences/MI_RLH_T2.npy"
+csv_label_2 = "../data/datasets/sequences/MM_RLH_T2_annotation.csv"
+npy_label_2 = "../data/datasets/sequences/MM_RLH_T2.npy"
 
+training_files = [npy_label_1, npy_label_2]
 
-csv_label_1_MM = "../data/datasets/sequences/MM_RLH_T1_annotation.csv"
-npy_label_1_MM = "../data/datasets/sequences/MM_RLH_T1.npy"
+csv_label_1_testing = "../data/datasets/sequences/MM_RLH_T1_annotation.csv"
+npy_label_1_testing = "../data/datasets/sequences/MM_RLH_T1.npy"
 
-csv_label_2_MM = "../data/datasets/sequences/MM_RLH_T2_annotation.csv"
-npy_label_2_MM = "../data/datasets/sequences/MM_RLH_T2.npy"
+csv_label_2_testing = "../data/datasets/sequences/MM_RLH_T2_annotation.csv"
+npy_label_2_testing = "../data/datasets/sequences/MM_RLH_T2.npy"
 
+testing_files = [npy_label_1_testing, npy_label_2_testing]
 
 '''
 csv_label_3 = "../data/datasets/sequences/MI_FF_T1_annotation.csv"
@@ -36,6 +39,7 @@ npy_label_3 = "../data/datasets/sequences/MI_FF_T1.npy"
 csv_label_4 = "../data/datasets/sequences/MI_FF_T2_annotation.csv"
 npy_label_4 = "../data/datasets/sequences/MI_FF_T2.npy"
 '''
+
 
 def generate_random_numbers(length, trainingPercent):
 	subjects = [x for x in range(1, 110) if x not in [88, 92, 100, 104]]
@@ -48,14 +52,20 @@ def generate_random_numbers(length, trainingPercent):
 	print(len(subjects))
 	subjects = subjects[: len(subjects) - (105-length)]
 	return subjects, testingSubjects
-	
 
-subjects, testingSubjects = generate_random_numbers(50, 0.2)
+
+subjects, testingSubjectsMult = generate_random_numbers(20, 0.1)
+
+testingSubjects = []
+testingSubjects.append(testingSubjectsMult[0])
+
+# testingSubjects = [subjects[0]]
 
 print(f"number of subjects: {len(subjects)}")
 print(subjects)
 print(f"number of testingSubjects: {len(testingSubjects)}")
 print(testingSubjects)
+
 
 def get_indices_for_subject(csv_file, subjects):
     indices = []
@@ -88,8 +98,10 @@ def create_data(csv_label, subjects, npy_label):
 data_1 = create_data(csv_label_1, subjects, npy_label_1)
 data_2 = create_data(csv_label_2, subjects, npy_label_2)
 
-test_data_1 = create_data(csv_label_1_MM, testingSubjects, npy_label_1_MM)
-test_data_2 = create_data(csv_label_2_MM, testingSubjects, npy_label_2_MM)
+test_data_1 = create_data(
+    csv_label_1_testing, testingSubjects, npy_label_1_testing)
+test_data_2 = create_data(
+    csv_label_2_testing, testingSubjects, npy_label_2_testing)
 
 test_data = []
 test_data.append(test_data_1)
@@ -102,6 +114,7 @@ data.append(data_2)
 ###############################################################
 ###############################################################
 
+
 def make_labels(data_array):
 	label_array = []
 	# [np.zeros(data_label_1.shape[0]), np.ones(data_label_2.shape[0])]
@@ -109,6 +122,7 @@ def make_labels(data_array):
 	for index, x in enumerate(data_array):
 		label_array.append(np.full(x.shape[0], index))
 	return label_array
+
 
 def prepareData(data):
 	# Reshape the data to 2D
@@ -119,6 +133,7 @@ def prepareData(data):
 	# Reshape the data back to 4D
 	data_normalized = data_normalized.reshape(data.shape)
 	return data
+
 
 def classify(training_data_array, testing_data_array):
 	# list of params
@@ -139,13 +154,13 @@ def classify(training_data_array, testing_data_array):
 	training_data_normalized = prepareData(training_data)
 	testing_data_normalized = prepareData(testing_data)
 
-	np.random.shuffle(training_data_normalized) 
-	np.random.shuffle(testing_data_normalized)
+	# np.random.shuffle(training_data_normalized)
+	# np.random.shuffle(testing_data_normalized)
 	print(training_data_normalized.shape)
 	print(testing_data_normalized.shape)
 
 	# Split the data into training and testing sets
-	#train_data, test_data, train_labels, test_labels = train_test_split(data_normalized, labels, test_size=0.1, random_state=42)
+	# train_data, test_data, train_labels, test_labels = train_test_split(data_normalized, labels, test_size=0.1, random_state=42)
 
 	train_data = training_data_normalized
 	train_labels = training_labels
@@ -172,22 +187,20 @@ def classify(training_data_array, testing_data_array):
 	])
 	'''
 	input_layer = Input((80, 17, 17, 1))
-	conv1 = Conv3D(filters = 8, kernel_size=(7, 3, 3), activation='relu')(input_layer)
-	conv2 = Conv3D(filters = 16, kernel_size=(5, 3, 3), activation='relu')(conv1)
-	conv3 = Conv3D(filters = 32, kernel_size=(3, 3, 3), activation='relu')(conv2)
+	conv1 = Conv3D(filters=8, kernel_size=(7, 3, 3),
+	               activation='relu')(input_layer)
+	conv2 = Conv3D(filters=16, kernel_size=(5, 3, 3), activation='relu')(conv1)
+	conv3 = Conv3D(filters=32, kernel_size=(3, 3, 3), activation='relu')(conv2)
 	flatten_layer = Flatten()(conv3)
-	dense1 = Dense(units = 256, activation = 'relu')(flatten_layer)
+	dense1 = Dense(units=256, activation='relu')(flatten_layer)
 	dense1 = Dropout(0.4)(dense1)
-	dense2 = Dense(units = 128, activation = 'relu')(dense1)
+	dense2 = Dense(units=128, activation='relu')(dense1)
 	dense2 = Dropout(0.4)(dense2)
-	output_layer = Dense(units = numLabels, activation = 'softmax')(dense2)
-
-	model= Model(inputs = input_layer, outputs = output_layer)
+	output_layer = Dense(units=numLabels, activation='softmax')(dense2)
+	model = Model(inputs=input_layer, outputs=output_layer)
 	model.summary()
 	config = model.to_json()
-	print(type(config))
-	print(config)
-	#quit()
+    JL.model_log(config)
 
 ######################################################################
 ######################################################################
@@ -195,14 +208,22 @@ def classify(training_data_array, testing_data_array):
 
 	# Compile the model
 	model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-	#csv_logger = CSVLogger('log1.csv', separator=",", append=False) TODO logger not found 
+	# csv_logger = CSVLogger('log1.csv', separator=",", append=False) TODO logger not found 
 	# Train the model
-	JL.json_logger = JSONLogger('epoch_performance.json')
-	model.fit(train_data, train_labels, epochs=101, batch_size=128, validation_data=(test_data, test_labels), callbacks=(json_logger))
+	json_logger = JL.JSONLogger('epoch_performance.json')
+	model.fit(train_data, train_labels, epochs=10, batch_size=128, validation_data=(test_data, test_labels), callbacks=(json_logger))
 
 	# Evaluate the model
 	test_loss, test_accuracy = model.evaluate(test_data, test_labels)
 	print('Test Loss:', test_loss)
 	print('Test Accuracy:', test_accuracy)
+    global accuracy 
+    global loss 
+    accuracy = test_accuracy
+    loss = test_loss
+
+
 
 classify(data, test_data)
+JL.output_log(subjects, testingSubjects, training_files, testing_files, accuracy)
+JL.make_logs()
