@@ -9,6 +9,7 @@ from keras.layers import Conv3D, Flatten, Dense, Dropout, Input
 from keras.models import Model
 from keras.optimizers import adam
 
+import jsonLog.py as JL
 
 
 # generalization: specific output classes
@@ -20,29 +21,41 @@ npy_label_1 = "../data/datasets/sequences/MI_RLH_T1.npy"
 csv_label_2 = "../data/datasets/sequences/MI_RLH_T2_annotation.csv"
 npy_label_2 = "../data/datasets/sequences/MI_RLH_T2.npy"
 
+
+csv_label_1_MM = "../data/datasets/sequences/MM_RLH_T1_annotation.csv"
+npy_label_1_MM = "../data/datasets/sequences/MM_RLH_T1.npy"
+
+csv_label_2_MM = "../data/datasets/sequences/MM_RLH_T2_annotation.csv"
+npy_label_2_MM = "../data/datasets/sequences/MM_RLH_T2.npy"
+
+
+'''
 csv_label_3 = "../data/datasets/sequences/MI_FF_T1_annotation.csv"
 npy_label_3 = "../data/datasets/sequences/MI_FF_T1.npy"
 
 csv_label_4 = "../data/datasets/sequences/MI_FF_T2_annotation.csv"
 npy_label_4 = "../data/datasets/sequences/MI_FF_T2.npy"
+'''
 
+def generate_random_numbers(length, trainingPercent):
+	subjects = [x for x in range(1, 110) if x not in [88, 92, 100, 104]]
+	random.shuffle(subjects)
+	testingSubjects = subjects.copy()
+	numTestingSubjects = int(length*trainingPercent)
+	while (len(testingSubjects) != numTestingSubjects):
+		testingSubjects.pop(0)
+	print(subjects)
+	print(len(subjects))
+	subjects = subjects[: len(subjects) - (105-length)]
+	return subjects, testingSubjects
+	
 
-def generate_random_numbers():
-    numbers = []
-    while len(numbers) < 5:
-        random_num = random.randint(1, 86)
-        if random_num not in numbers:
-            numbers.append(random_num)
-    return numbers
+subjects, testingSubjects = generate_random_numbers(50, 0.2)
 
-
-subjects = generate_random_numbers()
-# subjects = [x for x in range(1, 110) if x not in [88, 92, 100, 104]]
-# subjects = []
-# subjects = [85, 1, 12, 24, 17]
-
+print(f"number of subjects: {len(subjects)}")
 print(subjects)
-
+print(f"number of testingSubjects: {len(testingSubjects)}")
+print(testingSubjects)
 
 def get_indices_for_subject(csv_file, subjects):
     indices = []
@@ -74,14 +87,17 @@ def create_data(csv_label, subjects, npy_label):
 
 data_1 = create_data(csv_label_1, subjects, npy_label_1)
 data_2 = create_data(csv_label_2, subjects, npy_label_2)
-data_3 = create_data(csv_label_3, subjects, npy_label_3)
-data_4 = create_data(csv_label_4, subjects, npy_label_4)
+
+test_data_1 = create_data(csv_label_1_MM, testingSubjects, npy_label_1_MM)
+test_data_2 = create_data(csv_label_2_MM, testingSubjects, npy_label_2_MM)
+
+test_data = []
+test_data.append(test_data_1)
+test_data.append(test_data_2)
 
 data = []
 data.append(data_1)
 data.append(data_2)
-data.append(data_3)
-data.append(data_4)
 
 ###############################################################
 ###############################################################
@@ -94,35 +110,47 @@ def make_labels(data_array):
 		label_array.append(np.full(x.shape[0], index))
 	return label_array
 
+def prepareData(data):
+	# Reshape the data to 2D
+	data_2d = data.reshape((-1, data.shape[-1]))
+	# Normalize the data
+	scaler = StandardScaler()
+	data_normalized = scaler.fit_transform(data_2d)
+	# Reshape the data back to 4D
+	data_normalized = data_normalized.reshape(data.shape)
+	return data
 
-def classify(data_array):
+def classify(training_data_array, testing_data_array):
 	# list of params
-	numLabels = len(data_array)
+	numLabels = len(training_data_array)
 
 	# Load label_1 and label_2 data from .npy files
 	# data_label_1 = np.load('label_1.npy')
 	# data_label_2 = np.load('label_2.npy')
 
-	# Concatenate data and labels
-	data = np.concatenate(data_array, axis=0)
-	labels = np.concatenate(make_labels(data_array), axis=0)
+	# Concatenate training data and labels
+	training_data = np.concatenate(training_data_array, axis=0)
+	training_labels = np.concatenate(make_labels(training_data_array), axis=0)
 
-	# Reshape the data to 2D
-	data_2d = data.reshape((-1, data.shape[-1]))
+	# Concatenate testing  data and labels
+	testing_data = np.concatenate(testing_data_array, axis=0)
+	testing_labels = np.concatenate(make_labels(testing_data_array), axis=0)
 
-	# Normalize the data
-	scaler = StandardScaler()
-	data_normalized = scaler.fit_transform(data_2d)
+	training_data_normalized = prepareData(training_data)
+	testing_data_normalized = prepareData(testing_data)
 
-	# Reshape the data back to 4D
-	data_normalized = data_normalized.reshape(data.shape)
-
-	# Shuffle the order of frames within each sample
-	# np.random.shuffle(data_normalized) ##XXX this hurts performance
+	np.random.shuffle(training_data_normalized) 
+	np.random.shuffle(testing_data_normalized)
+	print(training_data_normalized.shape)
+	print(testing_data_normalized.shape)
 
 	# Split the data into training and testing sets
-	train_data, test_data, train_labels, test_labels = train_test_split(
-	    data_normalized, labels, test_size=0.1, random_state=42)
+	#train_data, test_data, train_labels, test_labels = train_test_split(data_normalized, labels, test_size=0.1, random_state=42)
+
+	train_data = training_data_normalized
+	train_labels = training_labels
+	test_data = testing_data_normalized
+	test_labels = testing_labels
 
 ######################################################################
 		# Main Model -- TODO implement logging (may have to save entire section)
@@ -156,6 +184,9 @@ def classify(data_array):
 
 	model= Model(inputs = input_layer, outputs = output_layer)
 	model.summary()
+	config = model.to_json()
+	print(type(config))
+	print(config)
 	#quit()
 
 ######################################################################
@@ -164,13 +195,14 @@ def classify(data_array):
 
 	# Compile the model
 	model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-
+	#csv_logger = CSVLogger('log1.csv', separator=",", append=False) TODO logger not found 
 	# Train the model
-	model.fit(train_data, train_labels, epochs=100, batch_size=128, validation_data=(test_data, test_labels))
+	JL.json_logger = JSONLogger('epoch_performance.json')
+	model.fit(train_data, train_labels, epochs=101, batch_size=128, validation_data=(test_data, test_labels), callbacks=(json_logger))
 
 	# Evaluate the model
 	test_loss, test_accuracy = model.evaluate(test_data, test_labels)
 	print('Test Loss:', test_loss)
 	print('Test Accuracy:', test_accuracy)
 
-classify(data)
+classify(data, test_data)
