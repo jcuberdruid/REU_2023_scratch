@@ -40,7 +40,6 @@ csv_label_4 = "../data/datasets/sequences/MI_FF_T2_annotation.csv"
 npy_label_4 = "../data/datasets/sequences/MI_FF_T2.npy"
 '''
 
-
 def generate_random_numbers(length, trainingPercent):
 	subjects = [x for x in range(1, 110) if x not in [88, 92, 100, 104]]
 	random.shuffle(subjects)
@@ -200,12 +199,10 @@ def classify(training_data_array, testing_data_array):
 	model = Model(inputs=input_layer, outputs=output_layer)
 	model.summary()
 	config = model.to_json()
-    JL.model_log(config)
-    #python fuckin sux
+	JL.model_log(config)
 
 ######################################################################
 ######################################################################
-
 
 	# Compile the model
 	model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
@@ -218,12 +215,10 @@ def classify(training_data_array, testing_data_array):
 	test_loss, test_accuracy = model.evaluate(test_data, test_labels)
 	print('Test Loss:', test_loss)
 	print('Test Accuracy:', test_accuracy)
-    global accuracy 
-    global loss 
-    accuracy = test_accuracy
-    loss = test_loss
-
-
+	global accuracy 
+	global loss 
+	accuracy = test_accuracy
+	loss = test_loss
 
 classify(data, test_data)
 JL.output_log(subjects, testingSubjects, training_files, testing_files, accuracy)
