@@ -47,7 +47,7 @@ def generate_random_numbers(length, trainingPercent):
 	return subjects, testingSubjects
 	
 
-subjects, testingSubjects = generate_random_numbers(20, 0.2)
+subjects, testingSubjects = generate_random_numbers(50, 0.2)
 
 print(f"number of subjects: {len(subjects)}")
 print(subjects)
