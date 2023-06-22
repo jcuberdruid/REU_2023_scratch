@@ -201,6 +201,7 @@ def classify(training_data_array, testing_data_array):
 	model.summary()
 	config = model.to_json()
     JL.model_log(config)
+    #python fuckin sux
 
 ######################################################################
 ######################################################################
