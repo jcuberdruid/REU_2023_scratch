@@ -7,7 +7,6 @@ from mpl_toolkits.mplot3d import Axes3D
 path = "../../data/datasets/sequences/MI_RLH_T1.npy"
 
 npyLoad = np.load(path)
-print(npyLoad[:5])
 print(npyLoad.shape)
 
 video_data = npyLoad[:250]
