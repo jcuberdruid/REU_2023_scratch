@@ -1,0 +1,1 @@
+{"training_subjects": [101, 35, 103, 17, 34, 78, 60, 83, 57, 69, 23, 66, 10, 97, 72, 106, 25, 89, 48, 46], "testing_subjects": [22], "training_files": ["../data/datasets/sequences/MM_RLH_T1.npy", "../data/datasets/sequences/MM_RLH_T2.npy"], "testing_files": ["../data/datasets/sequences/MM_RLH_T1.npy", "../data/datasets/sequences/MM_RLH_T2.npy"], "accuracy": 0.5111111402511597}
