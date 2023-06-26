@@ -29,24 +29,19 @@ for i in range(n_videos):
     video_vector = video_data_2d[i]
     cluster_labels[i] = som.winner(video_vector)[-1]
 
-# Now you have the cluster labels for each video
-print(cluster_labels)
+# Create a scatter plot of the 2D video locations
+plt.figure(figsize=(8, 6))
+for label in np.unique(cluster_labels):
+    videos_in_cluster = video_data_2d[cluster_labels == label]
+    x = videos_in_cluster[:, 0]  # Extract X coordinates
+    y = videos_in_cluster[:, 1]  # Extract Y coordinates
+    plt.scatter(x, y, label=f'Cluster {label}')
 
-unique_clusters = np.unique(cluster_labels)
+plt.title('Video Clustering')
+plt.xlabel('Feature 1')
+plt.ylabel('Feature 2')
+plt.legend()
+plt.savefig('test.png')
+plt.show()
 
-print(unique_clusters)
-
-# Generate a grid of colors based on the cluster labels
-color_map = plt.cm.get_cmap('tab10', len(unique_clusters))
-
-# Plot the SOM grid and color the neurons based on cluster labels
-plt.figure(figsize=(10, 10))
-plt.pcolor(som.distance_map().T, cmap='bone_r')  # Plot the distance map as background
-for i, video_vector in enumerate(video_data_2d):
-    winner = som.winner(video_vector)
-    plt.plot(winner[0] + 0.5, winner[1] + 0.5, 'o', markerfacecolor=color_map(cluster_labels[i] / len(unique_clusters)), markersize=2, markeredgecolor='k')
-plt.xticks(np.arange(0, 100, 10))
-plt.yticks(np.arange(0, 100, 10))
-plt.grid(True)
-plt.savefig("test.png")
 

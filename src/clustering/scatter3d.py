@@ -1,6 +1,8 @@
 import numpy as np
 from minisom import MiniSom
+from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 path = "../../data/datasets/sequences/MI_RLH_T1.npy"
 
@@ -29,24 +31,24 @@ for i in range(n_videos):
     video_vector = video_data_2d[i]
     cluster_labels[i] = som.winner(video_vector)[-1]
 
-# Now you have the cluster labels for each video
-print(cluster_labels)
+# Apply PCA for dimensionality reduction to 3D
+pca = PCA(n_components=3)
+video_data_3d_pca = pca.fit_transform(video_data_2d)
 
-unique_clusters = np.unique(cluster_labels)
+# Create a 3D scatter plot of the video locations
+fig = plt.figure(figsize=(8, 6))
+ax = fig.add_subplot(111, projection='3d')
+for label in np.unique(cluster_labels):
+    videos_in_cluster = video_data_3d_pca[cluster_labels == label]
+    x = videos_in_cluster[:, 0]  # Extract X coordinates
+    y = videos_in_cluster[:, 1]  # Extract Y coordinates
+    z = videos_in_cluster[:, 2]  # Extract Z coordinates
+    ax.scatter(x, y, z, label=f'Cluster {label}')
 
-print(unique_clusters)
-
-# Generate a grid of colors based on the cluster labels
-color_map = plt.cm.get_cmap('tab10', len(unique_clusters))
-
-# Plot the SOM grid and color the neurons based on cluster labels
-plt.figure(figsize=(10, 10))
-plt.pcolor(som.distance_map().T, cmap='bone_r')  # Plot the distance map as background
-for i, video_vector in enumerate(video_data_2d):
-    winner = som.winner(video_vector)
-    plt.plot(winner[0] + 0.5, winner[1] + 0.5, 'o', markerfacecolor=color_map(cluster_labels[i] / len(unique_clusters)), markersize=2, markeredgecolor='k')
-plt.xticks(np.arange(0, 100, 10))
-plt.yticks(np.arange(0, 100, 10))
-plt.grid(True)
-plt.savefig("test.png")
+ax.set_title('Video Clustering')
+ax.set_xlabel('Principal Component 1')
+ax.set_ylabel('Principal Component 2')
+ax.set_zlabel('Principal Component 3')
+ax.legend()
+plt.show()
 
