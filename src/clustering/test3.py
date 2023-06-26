@@ -8,7 +8,7 @@ npyLoad = np.load(path)
 print(npyLoad[:5])
 print(npyLoad.shape)
 
-video_data = npyLoad
+video_data = npyLoad[:250]
 
 # Reshape the video data to 2D vectors
 n_videos, n_frames, width, height = video_data.shape
@@ -18,7 +18,7 @@ video_data_2d = video_data.reshape(n_videos, n_frames, width * height)
 video_data_flattened = video_data_2d.reshape(n_videos * n_frames, width * height)
 
 # Create a SOM instance
-som = MiniSom(x=10, y=10, input_len=width * height, sigma=1.0, learning_rate=0.5)
+som = MiniSom(x=100, y=100, input_len=width * height, sigma=1.0, learning_rate=0.5)
 
 # Initialize the SOM
 som.random_weights_init(video_data_flattened)
@@ -44,13 +44,13 @@ print(unique_clusters)
 color_map = plt.cm.get_cmap('tab10')
 
 # Plot the SOM grid and color the neurons based on cluster labels
-plt.figure(figsize=(8, 8))
+plt.figure(figsize=(80, 80))
 plt.pcolor(som.distance_map().T, cmap='bone_r')  # Plot the distance map as background
 for i, video_vectors in enumerate(video_data_2d):
     winners = np.array([som.winner(vector.flatten()) for vector in video_vectors])
     plt.plot(winners[:, 0] + 0.5, winners[:, 1] + 0.5, 'o', markerfacecolor=color_map(cluster_labels[i] / len(np.unique(cluster_labels))), markersize=8, markeredgecolor='k')
-plt.xticks(np.arange(0, 10, 1))
-plt.yticks(np.arange(0, 10, 1))
+plt.xticks(np.arange(0, 100, 1))
+plt.yticks(np.arange(0, 100, 1))
 plt.grid(True)
 plt.savefig("test.png")
 
