@@ -16,19 +16,19 @@ loss = None
 # generalization: specific output classes
 # output expirment data
 
-csv_label_1 = "../data/datasets/sequences/MI_RLH_T1_annotation.csv"
-npy_label_1 = "../data/datasets/sequences/MI_RLH_T1.npy"
+csv_label_1 = "../data/datasets/sequences/MM_RLH_T1_annotation.csv"
+npy_label_1 = "../data/datasets/sequences/MM_RLH_T1.npy"
 
-csv_label_2 = "../data/datasets/sequences/MI_RLH_T2_annotation.csv"
-npy_label_2 = "../data/datasets/sequences/MI_RLH_T2.npy"
+csv_label_2 = "../data/datasets/sequences/MI_RLH_T1_annotation.csv"
+npy_label_2 = "../data/datasets/sequences/MI_RLH_T1.npy"
 
 training_files = [npy_label_1, npy_label_2]
 
-csv_label_1_testing = "../data/datasets/sequences/MI_RLH_T1_annotation.csv"
-npy_label_1_testing = "../data/datasets/sequences/MI_RLH_T1.npy"
+csv_label_1_testing = "../data/datasets/sequences/MM_RLH_T1_annotation.csv"
+npy_label_1_testing = "../data/datasets/sequences/MM_RLH_T1.npy"
 
-csv_label_2_testing = "../data/datasets/sequences/MI_RLH_T2_annotation.csv"
-npy_label_2_testing = "../data/datasets/sequences/MI_RLH_T2.npy"
+csv_label_2_testing = "../data/datasets/sequences/MM_RLH_T1_annotation.csv"
+npy_label_2_testing = "../data/datasets/sequences/MM_RLH_T1.npy"
 
 testing_files = [npy_label_1_testing, npy_label_2_testing]
 
@@ -54,6 +54,7 @@ def generate_random_numbers(length, trainingPercent):
 
 
 subjects = [x for x in range(1, 110) if x not in [88, 92, 100, 104]]
+#subjects = [x for x in range(1, 110) if x not in [88, 92, 100, 104]]
 
 random.shuffle(subjects)
 
@@ -212,7 +213,7 @@ def classify(training_data_array, testing_data_array):
 	# csv_logger = CSVLogger('log1.csv', separator=",", append=False) TODO logger not found 
 	# Train the model
 	json_logger = JL.JSONLogger('epoch_performance.json')
-	model.fit(train_data, train_labels, epochs=100, batch_size=148, validation_data=(test_data, test_labels), callbacks=(json_logger))
+	model.fit(train_data, train_labels, epochs=150, batch_size=156, validation_data=(test_data, test_labels), callbacks=(json_logger))
 	# Evaluate the model
 	test_loss, test_accuracy = model.evaluate(test_data, test_labels)
 	print('Test Loss:', test_loss)
