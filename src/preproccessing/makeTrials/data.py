@@ -39,7 +39,8 @@ def preproccess(subject, test, raw):
 
 
 def epoches(subject, test, raw):
-    epochSaveDir = "epoches"
+    print(f"subject {subject}")
+    epochSaveDir = "../../data/datasets/unproccessed/trials/" 
     if (os.path.exists(epochSaveDir) != True):
         os.mkdir(epochSaveDir)
     if test == 3 or test == 7 or test == 11:
@@ -63,18 +64,26 @@ def epoches(subject, test, raw):
     print(f"task is: {test}")
     print("about to get events")
     events = mne.events_from_annotations(raw, event_id=None)
-
+    print(f"events length {len(events)}")
+    print(events)
     print("about to make epoches")
     baseline_interval = (-1, 0.0)  # Specify the baseline interval (e.g., 200 ms before the event)
     epochs = mne.Epochs(raw, events[0], tmin=-1, tmax=4.0,
-                    event_id=event_dict, baseline=baseline_interval, preload=True)
+                    event_id=event_dict, reject=None, baseline=baseline_interval, preload=True)
+
     epochs.crop(tmin=0.0)  # Crop epochs to start at 0.0 seconds (remove the baseline period)
 
+    # Get the drop log from Epochs
+    drop_log = epochs.drop_log
+
+    # Iterate over the drop log and print dropped epochs
+    print(epochs.events)
+    print(drop_log) 
+    
     df = epochs.to_data_frame()
     # print(df['condition'].to_string(index=False))
     # df1 = (df.groupby(df['condition'].to_string(index=False) == 'MI_LF')
     # df1, df2 = [x for _, x in df.groupby(df['condition'] == 'MI_LH')]
-
     #rest, df1 = [x for _, x in df.groupby(df['condition'] == T1Cond)]
     #rest, df2 = [x for _, x in rest.groupby(rest['condition'] == T2Cond)]
     df1 = df[df['condition'] == T1Cond]
@@ -82,10 +91,9 @@ def epoches(subject, test, raw):
     print(len(df1))
     print(len(df2))
     print(df1)
-    quit()
     saveNameDf1 = 'S'+str(subject)+'_'+str(test)+'_T1.csv'
     saveNameDf2 = 'S'+str(subject)+'_'+str(test)+'_T2.csv'
-    
+    mne.export.export_raw('stdNoProccessS1_3.edf', raw, fmt='auto', physical_range='auto', add_ch_type=False, overwrite=True, verbose=None)
     df1.insert(1, 'run', test)
     df1.insert(1, 'subject', subject)
     df2.insert(1, 'run', test)

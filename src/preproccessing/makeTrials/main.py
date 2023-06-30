@@ -8,7 +8,7 @@ import mne
 import data
 from multiprocessing import Process, freeze_support
 
-savePath = "./proccessedDB"
+savePath = "../../data/datasets/unproccessed/trials/"
 
 
 def preprocessSave(subjectRange):
