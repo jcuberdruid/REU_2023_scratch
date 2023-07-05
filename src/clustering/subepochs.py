@@ -1,4 +1,6 @@
 import csv
+import json
+import os
 import numpy as np
 from minisom import MiniSom
 from sklearn.decomposition import PCA
@@ -6,6 +8,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import random
 import subjectClusterJson as scj
+from datetime import datetime
 import time
 
 clusteringPath = '../../clustering_logs/'
@@ -45,10 +48,9 @@ for x in dataFiles:
     data.append(np.load(path))
     print(f"{padding}done.")
 
-quit()
 
-def cluster(targetSubject, subjectObject, video_data, annotations_arr):
-    #NOTE start of function (targetSubject, subjectObject, video_data, annotations_arr)
+def cluster(targetSubject, subjectObject, video_data, data_npy, annotations_arr):
+    subject = subjectObject #TODO go back through and change subject variable name manually 
     # constants
     #targetSubject = 24 
     #annotations_csv = "../../data/datasets/hilowonly/sequences/MI_RLH_T1_annotation.csv"
@@ -111,31 +113,15 @@ def cluster(targetSubject, subjectObject, video_data, annotations_arr):
         video_vector = video_data_2d[i]
         cluster_labels[i] = som.winner(video_vector)[-1]
 
-    print(cluster_labels)
-
     counts = np.bincount((cluster_labels.astype(int)))
-    for value, count in enumerate(counts):
-        print(f"Count of {value}: {count}")
 
-    print("similar score 60:")
     clusteredEpochs = []
     for index, x in enumerate(annotations_arr):
         thisDict = {'subject': int(x['subject']), 'epoch': int(
             x['epoch']), 'cluster': int(cluster_labels[index]), 'index':int(x['index'])}
         clusteredEpochs.append(thisDict)
-        if (thisDict['subject'] == 60):
-            print(thisDict)
-
-    print(f"the length of the clusteredEpochs array is {len(clusteredEpochs)}")
-
     targetClusteredIndices = [int(y['index']) for y in clusteringIndices]
     targetClustered = [i for j, i in enumerate(clusteredEpochs) if i['index'] in targetClusteredIndices]
-
-    print("clustered points from target")
-    for x in targetClustered:
-        print(x)
-    # determine which cluster these targetClustered sub epochs are in (or at least mostly) 
-    # maybe if some percentage (lets say 90?) aren't in one cluster then we repeat with fewer clusters 
 
     def calc_percentage_subjects_per_cluster(arr):
         from collections import defaultdict
@@ -164,7 +150,7 @@ def cluster(targetSubject, subjectObject, video_data, annotations_arr):
         # Calculate and print percentage for each number of clusters, and print the subjects in each category
         for num_clusters, num_subjects in sorted(cluster_count_map.items()):
             percentage = (num_subjects / total_subjects) * 100
-            print(f"{percentage:.2f}% of subjects are spread across {num_clusters} clusters: {subjects_per_cluster_count[num_clusters]}")
+        #print(f"{percentage:.2f}% of subjects are spread across {num_clusters} clusters: {subjects_per_cluster_count[num_clusters]}")
 
     def find_similar_subjects(data):
         subject_clusters = {}
@@ -238,27 +224,27 @@ def cluster(targetSubject, subjectObject, video_data, annotations_arr):
             if x['epoch'] not in thisEpochs: 
                 thisEpochs.append(x['epoch'])
 
-    subject.appendClasses(class_n)
+    class_n.appendSimilar(thisSubject, thisEpochs, thisIndices)
+    return class_n
 #NOTE end of func 
 
 
 #TODO mainloop 
-for 
+exclude = [88, 89, 92, 100, 104]
+subjects = [x for x in range(1, 3) if x not in exclude]
 
-#start loop going through 1 to 109 skipping the bad ones
-    #create Subject object
-    #cluster(class1)
-    #cluster(class2)
-    #cluster(class3)
-    #cluster(class4)
-    #cluster(class5)
-    #cluster(class6)
-    #cluster(class7)
-    #cluster(class8)
-    #json_string 
-    #output to file at clusteringPath
+dirPath = clusteringPath + dataset + "/"
+os.mkdir(dirPath)
 
-json_string = subject.toJson()
-print(json_string)
-
-
+for x in subjects:
+    print(f"Clustering for subject {x}")
+    subject = scj.Subject(x)
+    for y in range(len(annotationsPath)):
+        class_n = cluster(x, subject, data[y], dataFiles[y], annotations[y])
+        subject.appendClasses(class_n)
+    json_string = subject.toJson()
+    timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+    fileName = f"S{x}_clustering_log_{timestamp}"
+    filePath = dirPath + fileName 
+    with open(filePath, 'w') as f:
+        f.write(json_string)
