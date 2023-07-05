@@ -59,15 +59,14 @@ random.shuffle(subjects)
 testingSubjects = []
 testingSubjects.append(subjects.pop(0))
 
-# testingSubjects = [subjects[0]]
-
 print(f"number of subjects: {len(subjects)}")
 print(subjects)
 print(f"number of testingSubjects: {len(testingSubjects)}")
 print(testingSubjects)
 
+def get_indices_for_subject(csv_file, subjects, testingTraining):
+    if (testing == 1):
 
-def get_indices_for_subject(csv_file, subjects):
     indices = []
     with open(csv_file, 'r') as file:
         reader = csv.DictReader(file)
@@ -86,7 +85,6 @@ def data_for_subject(npy_file, indices):
         npySubSet.append(npyLoad[x])
     return npySubSet
 
-
 def create_data(csv_label, subjects, npy_label):
 	indices_label = get_indices_for_subject(csv_label, subjects)
 	npyData_label = np.array(data_for_subject(npy_label, indices_label))
@@ -94,6 +92,13 @@ def create_data(csv_label, subjects, npy_label):
 	# return np.load('label.npy')
 	return npyData_label
 
+def average_eights(np_array): 
+    #(16, 80, 17, 17)
+    np_array_tail = np.concatenate((np_array[:len(np_array)-8], np_array[len(np_array):]))
+    np_array_head = np.concatenate((np_array[:0],np_array[len(np_array)-8:]))
+    newArr = np.mean([np_array_tail, np_array_head], axis=0)
+    return newArr
+    
 
 data_1 = create_data(csv_label_1, subjects, npy_label_1)
 data_2 = create_data(csv_label_2, subjects, npy_label_2)
@@ -103,15 +108,17 @@ test_data_1 = create_data(
 test_data_2 = create_data(
     csv_label_2_testing, testingSubjects, npy_label_2_testing)
 
-
-#shuffle data into 90 and 10 percent (ish)
+#shuffle data into 90 and 10(ish) percent 
 test_data_1_perc = np.concatenate((test_data_1[:0], test_data_1[len(test_data_1)-16:]))
 test_data_1 = np.concatenate((test_data_1[:len(test_data_1)-16], test_data_1[len(test_data_1):]))
 
 test_data_2_perc = np.concatenate((test_data_2[:0], test_data_2[len(test_data_2)-16:]))
 test_data_2 = np.concatenate((test_data_2[:len(test_data_2)-16], test_data_2[len(test_data_2):]))
 
-#concat the 10 percent of the subject into the testing data 
+#average the 10 percent into 1 epoch 
+average_eights(test_data_1_perc)
+
+#concat the 10(ish) percent of the subject into the testing data 
 data_1_including_sub = np.concatenate((data_1, test_data_1_perc), axis=0)
 data_2_including_sub = np.concatenate((data_2, test_data_2_perc), axis=0)
 
