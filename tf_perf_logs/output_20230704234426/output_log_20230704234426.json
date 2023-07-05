@@ -1,0 +1,1 @@
+{"training_subjects": [47], "testing_subjects": [1], "training_files": ["../data/datasets/sequences/MI_RLH_T1.npy", "../data/datasets/sequences/MI_RLH_T2.npy"], "testing_files": ["../data/datasets/sequences/MI_RLH_T1.npy", "../data/datasets/sequences/MI_RLH_T2.npy"], "accuracy": 0.6694444417953491}
