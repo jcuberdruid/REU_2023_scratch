@@ -231,7 +231,7 @@ def cluster(targetSubject, subjectObject, video_data, data_npy, annotations_arr)
 
 #TODO mainloop 
 exclude = [88, 89, 92, 100, 104]
-subjects = [x for x in range(1, 3) if x not in exclude]
+subjects = [x for x in range(1, 110) if x not in exclude]
 
 dirPath = clusteringPath + dataset + "/"
 os.mkdir(dirPath)
