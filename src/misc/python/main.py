@@ -1,21 +1,74 @@
-
-## 0<->63 electrodes, units: 
-
-from matplotlib import pyplot as plt 
-import pyedflib
+import os
+from tqdm import tqdm
+import sys
+import matplotlib.pyplot as plt
 import numpy as np
-import scipy
-import pandas as pd
-from numpy import asarray
-from numpy import savetxt
+# MNE proccessing
+import mne
+import data
+from multiprocessing import Process, freeze_support
 
-file_name = "eegmmidb/1.0.0/S100/S100R01.edf"
-
-f = pyedflib.EdfReader(file_name)
-n = f.signals_in_file
-signal_labels = f.getSignalLabels()
-data = np.zeros((n, f.getNSamples()[0]))
-for i in np.arange(n):
-        data[i, :] = f.readSignal(i)
+savePath = "./proccessedDB"
 
 
+def preprocessSave(subjectRange):
+	# sys.stdout = open('/dev/null', 'w')
+	# sys.stderr = open('/dev/null', 'w')
+	for subject in range(subjectRange[0], subjectRange[1]+1):
+		print("starting subject "+str(subject))
+		for run in range(3, 15):
+			# load dataset
+			raw = data.loadEEG(subject, run)
+			raw = data.preproccess(subject, run, raw)
+			saveName = 'S'+str(subject)+'_'+str(run)+'.edf'
+			thisSavePath = os.path.join(savePath, saveName)
+			mne.export.export_raw(thisSavePath, raw, fmt='auto', physical_range='auto',
+			                      add_ch_type=False, overwrite=True)  # , verbose=None)
+			data.epoches(subject, run, raw)
+			print("done with epoches")
+			print("exported subject"+str(subject)+", run: "+str(run))
+	return
+
+
+def divide_tasks(num_tasks, dividing_number):
+    quotient, remainder = divmod(num_tasks, dividing_number)
+    start = 1
+    divided_tasks = []
+
+    for i in range(dividing_number):
+        end = start + quotient - 1
+        if i < remainder:
+            end += 1
+        divided_tasks.append((start, end))
+        start = end + 1
+
+    return divided_tasks
+
+
+def main():
+    if (os.path.exists(savePath) != True):
+        os.mkdir(savePath)
+    concurrencyMult = 5
+    tasks_divided = divide_tasks(109, concurrencyMult)
+
+    print("concurrency set to process " +
+          str(concurrencyMult) + " subjects at a time")
+    print("preprocessing PhysioNet database: 109 subjects, 14 records per subject")
+    preprocessSave((1,87))
+    preprocessSave((89,91))
+    preprocessSave((93, 99))
+    preprocessSave((101, 103))
+    preprocessSave((105, 109))
+    '''
+    processes = []
+    for x in range(concurrencyMult): 
+        p = Process(target=preprocessSave, args=(tasks_divided[x],))
+        p.start()
+        processes.append(p)
+    # Wait for all processes to finish
+    for p in processes:
+        p.join()
+    '''
+if __name__ == "__main__":
+    freeze_support()
+    main()

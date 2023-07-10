@@ -1,6 +1,6 @@
 import pandas as pd
-
 import os
+import paths
 
 def merge_csvs(files):
     df = pd.DataFrame()
@@ -12,8 +12,8 @@ def merge_csvs(files):
         df = pd.concat([df, data], axis=0)
     return df
 
-inTakeDir = "../../data/datasets/unproccessed/trials/csvs/"
-outputDir = "../../data/datasets/unproccessed/tasks/"
+inTakeDir = paths.dirBase + "trials/"
+outputDir = paths.dirBase + "tasks/"
 
 for s in range(1, 110):
     if (s == 88 or s == 92 or s == 100 or s == 104):

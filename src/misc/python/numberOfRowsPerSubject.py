@@ -14,7 +14,7 @@ def count_rows_per_subject(csv_file):
 
     return rows_per_subject
 
-csv_file = '../data/datasets/sequences/MI_FF_T1_annotation.csv'
+csv_file = '../../../data/datasets/sequences/MI_RLH_T1_annotation.csv'
 rows_per_subject = count_rows_per_subject(csv_file)
 
 # Sort subjects in ascending order

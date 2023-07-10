@@ -7,40 +7,57 @@ from mne.io import concatenate_raws, read_raw_edf
 from mne.datasets import eegbci
 from mne.preprocessing import ICA, corrmap, create_ecg_epochs, create_eog_epochs
 import pandas as pd
+import paths
 
 
 # mapping for channel names
 mapping = {'Fc5.': 'FC5', 'Fc3.': 'FC3', 'Fc1.': 'FC1', 'Fcz.': 'FCZ', 'Fc2.': 'FC2', 'Fc4.': 'FC4', 'Fc6.': 'FC6', 'C5..': 'C5', 'C3..': 'C3', 'C1..': 'C1', 'Cz..': 'CZ', 'C2..': 'C2', 'C4..': 'C4', 'C6..': 'C6', 'Cp5.': 'CP5', 'Cp3.': 'CP3', 'Cp1.': 'CP1', 'Cpz.': 'CPZ', 'Cp2.': 'CP2', 'Cp4.': 'CP4', 'Cp6.': 'CP6', 'Fp1.': 'FP1', 'Fpz.': 'FPZ', 'Fp2.': 'FP2', 'Af7.': 'AF7', 'Af3.': 'AF3', 'Afz.': 'AFZ', 'Af4.': 'AF4', 'Af8.': 'AF8', 'F7..': 'F7', 'F5..': 'F5',
            'F3..': 'F3', 'F1..': 'F1', 'Fz..': 'FZ', 'F2..': 'F2', 'F4..': 'F4', 'F6..': 'F6', 'F8..': 'F8', 'Ft7.': 'FT7', 'Ft8.': 'FT8', 'T7..': 'T7', 'T8..': 'T8', 'T9..': 'T9', 'T10.': 'T10', 'Tp7.': 'TP7', 'Tp8.': 'TP8', 'P7..': 'P7', 'P5..': 'P5', 'P3..': 'P3', 'P1..': 'P1', 'Pz..': 'PZ', 'P2..': 'P2', 'P4..': 'P4', 'P6..': 'P6', 'P8..': 'P8', 'Po7.': 'PO7', 'Po3.': 'PO3', 'Poz.': 'POZ', 'Po4.': 'PO4', 'Po8.': 'PO8', 'O1..': 'O1', 'Oz..': 'OZ', 'O2..': 'O2', 'Iz..': 'IZ'}
 
+def preproccessDep(subject, test, raw):
+    # due to very intentional experimentation best results achieved with (0.1, 0.2) and no h_freq
+    raw_filtered = raw.copy().filter(l_freq=1, h_freq=79)  # , verbose=None)
+    
+    # set up and fit the ICA
+    ica = mne.preprocessing.ICA(n_components=32, random_state=None, max_iter='auto')  # , verbose=None)
+    ica.fit(raw_filtered)  # , verbose=None)
+    
+    # Find components to exclude based on correlation with EOG
+    eog_inds, scores = ica.find_bads_eog(raw_filtered)
+    ica.exclude = eog_inds
+    
+    # Apply the ICA to the raw data
+    raw_corrected = ica.apply(raw_filtered.copy())  # , verbose=None)
+
+    # due to very intentional experimentation best reults achieved with (0.1, 0.2) and no h_freq
+    for cutoff in (0.1, 0.2):  # 0.1Hz 0.2Hz
+        raw_corrected = raw_corrected.filter(l_freq=cutoff, h_freq=30)  # , verbose=None)
+    
+    # average referencing
+    raw_corrected.set_eeg_reference(ref_channels="average")
+
+    return raw_corrected
 
 def preproccess(subject, test, raw):
-    return raw
-    # due to very intentional experimentation best reults achieved with (0.1, 0.2) and no h_freq
-    for cutoff in (0.1, 0.2):  # 0.1Hz 0.2Hz
-        raw = raw.copy().filter(l_freq=cutoff, h_freq=30)  # , verbose=None)
+    # due to very intentional experimentation best results achieved with (0.1, 0.2) and no h_freq
+    raw_filtered = raw.copy().filter(l_freq=1, h_freq=79)  # , verbose=None)
 
-    filt_raw = raw.copy().filter(l_freq=1.0, h_freq=None)
     # set up and fit the ICA
-    ica = mne.preprocessing.ICA(
-        n_components=5, random_state=None, max_iter='auto')  # , verbose=None)
-    ica = ica.fit(filt_raw)  # , verbose=None)
-    # ica.plot_overlay(raw, exclude=[0], picks="eeg")
-    ica = ica.apply(raw)  # , verbose=None)
-    ica.exclude = [1, 2, 3]  # details on how we picked these are omitted here
+    ica = mne.preprocessing.ICA(n_components=32, random_state=None, max_iter='auto')  # , verbose=None)
+    ica.fit(raw_filtered)  # , verbose=None)
 
-    # due to very intentional experimentation best reults achieved with (0.1, 0.2) and no h_freq
-    for cutoff in (0.1, 0.2):  # 0.1Hz 0.2Hz
-        raw = raw.copy().filter(l_freq=cutoff, h_freq=30)  # , verbose=None)
+    # Apply the ICA to the raw data
+    raw_corrected = ica.apply(raw_filtered.copy())  # , verbose=None)
+
     # average referencing
-    raw = raw.copy().set_eeg_reference(ref_channels="average")
+    raw_corrected.set_eeg_reference(ref_channels="average")
 
-    return raw
+    return raw_corrected
 
 
 def epoches(subject, test, raw):
     print(f"subject {subject}")
-    epochSaveDir = "../../data/datasets/unproccessed/trials/" 
+    epochSaveDir = paths.dirBase + "trials/" 
     if (os.path.exists(epochSaveDir) != True):
         os.mkdir(epochSaveDir)
     if test == 3 or test == 7 or test == 11:

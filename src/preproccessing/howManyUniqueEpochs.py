@@ -22,11 +22,14 @@ def count_unique_runs_epochs(csv_file):
 #csv_file_path = '/home/jc/keras/data/datasets/unproccessed/tasks/S41_MM_RLH_T1.csv'
 #csv_file_path = '/home/jc/keras/data/datasets/unproccessed/trials/csvs/S41_3_T1.csv'
 #csv_file_path = '/home/jc/keras/data/datasets/unproccessed/trials/csvs/S41_7_T1.csv'
-csv_file_path = '/home/jc/keras/data/datasets/unproccessed/trials/csvs/S41_11_T1.csv'
+csv_file_path = '/home/jc/keras/data/datasets/hilowonly/sequences/MI_RLH_T1_annotation.csv'
 
 
 unique_runs_epochs = count_unique_runs_epochs(csv_file_path)
 # Print the results
+
+countEpochs
+
 for subject, runs_epochs in unique_runs_epochs.items():
     print(f"Subject {subject}:")
     print(f"Number of unique runs and epochs combinations: {len(runs_epochs)}")

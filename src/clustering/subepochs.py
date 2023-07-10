@@ -13,11 +13,11 @@ import time
 
 clusteringPath = '../../clustering_logs/'
 
-dataset = "hilowonly" #NOTE change this for different preproccessing 
+dataset = "processed4" #NOTE change this for different preproccessing 
 dataPath = f"../../data/datasets/{dataset}/sequences/"
 
-annotationsPath = ["MI_FF_T1_annotation.csv","MI_FF_T2_annotation.csv","MI_RLH_T1_annotation.csv","MI_RLH_T2_annotation.csv","MM_FF_T1_annotation.csv","MM_FF_T2_annotation.csv","MM_RLH_T1_annotation.csv","MM_RLH_T2_annotation.csv"]
-dataFiles = ["MI_FF_T1.npy","MI_FF_T2.npy","MI_RLH_T1.npy","MI_RLH_T2.npy","MM_FF_T1.npy","MM_FF_T2.npy","MM_RLH_T1.npy","MM_RLH_T2.npy"]
+annotationsPath = ["MI_FF_T1_annotation.csv","MI_FF_T2_annotation.csv","MI_RLH_T1_annotation.csv","MI_RLH_T2_annotation.csv"]#,"MM_FF_T1_annotation.csv","MM_FF_T2_annotation.csv","MM_RLH_T1_annotation.csv","MM_RLH_T2_annotation.csv"]
+dataFiles = ["MI_FF_T1.npy","MI_FF_T2.npy","MI_RLH_T1.npy","MI_RLH_T2.npy"]#,"MM_FF_T1.npy","MM_FF_T2.npy","MM_RLH_T1.npy","MM_RLH_T2.npy"]
 
 # for padding 
 fixed_column = 50 
@@ -49,8 +49,9 @@ for x in dataFiles:
     print(f"{padding}done.")
 
 
-def cluster(targetSubject, subjectObject, video_data, data_npy, annotations_arr):
+def cluster(targetSubject, subjectObject, video_data, data_npy, annotations_arr, start_clusters=15):
     subject = subjectObject #TODO go back through and change subject variable name manually 
+    print("###############START OF Class#############")
     # constants
     #targetSubject = 24 
     #annotations_csv = "../../data/datasets/hilowonly/sequences/MI_RLH_T1_annotation.csv"
@@ -93,36 +94,59 @@ def cluster(targetSubject, subjectObject, video_data, data_npy, annotations_arr)
     ##############################################
     # SOM
     ##############################################
+    subjectsCluster = None
+    counts = None
+    num_iter = 2000 
+    for n_clusters in range(start_clusters, 1, -1):  # Start from 10 clusters and decrement until 2
+        # Rest of your code remains same...
+         # Reshape the video data to 2D vectors
+        n_videos, n_frames, width, height = video_data.shape
+        video_data_2d = video_data.reshape(n_videos, n_frames * width * height)
+        # Create a SOM instance
+        som = MiniSom(x=1, y=n_clusters, input_len=n_frames * width * height, sigma=0.8, learning_rate=0.5)
 
-    # Reshape the video data to 2D vectors
-    n_videos, n_frames, width, height = video_data.shape
-    video_data_2d = video_data.reshape(n_videos, n_frames * width * height)
+        # Initialize the SOM
+        som.random_weights_init(video_data_2d)
 
-    # Create a SOM instance
-    som = MiniSom(x=1, y=2, input_len=n_frames * width * height, sigma=0.8, learning_rate=0.5)
+        # Train the SOM
+        som.train_random(video_data_2d, num_iteration=num_iter)
 
-    # Initialize the SOM
-    som.random_weights_init(video_data_2d)
+        # Get the clustered labels for each video
+        cluster_labels = np.zeros(n_videos)
+        for i in range(n_videos):
+            video_vector = video_data_2d[i]
+            cluster_labels[i] = som.winner(video_vector)[-1]
 
-    # Train the SOM
-    som.train_random(video_data_2d, num_iteration=1000)
+        counts = np.bincount((cluster_labels.astype(int)))
 
-    # Get the clustered labels for each video
-    cluster_labels = np.zeros(n_videos)
-    for i in range(n_videos):
-        video_vector = video_data_2d[i]
-        cluster_labels[i] = som.winner(video_vector)[-1]
-
-    counts = np.bincount((cluster_labels.astype(int)))
-
-    clusteredEpochs = []
-    for index, x in enumerate(annotations_arr):
-        thisDict = {'subject': int(x['subject']), 'epoch': int(
-            x['epoch']), 'cluster': int(cluster_labels[index]), 'index':int(x['index'])}
-        clusteredEpochs.append(thisDict)
-    targetClusteredIndices = [int(y['index']) for y in clusteringIndices]
-    targetClustered = [i for j, i in enumerate(clusteredEpochs) if i['index'] in targetClusteredIndices]
-
+        clusteredEpochs = []
+        for index, x in enumerate(annotations_arr):
+            thisDict = {'subject': int(x['subject']), 'epoch': int(
+                x['epoch']), 'cluster': int(cluster_labels[index]), 'index':int(x['index'])}
+            clusteredEpochs.append(thisDict)
+        targetClusteredIndices = [int(y['index']) for y in clusteringIndices]
+        targetClustered = [i for j, i in enumerate(clusteredEpochs) if i['index'] in targetClusteredIndices]
+        
+        # Now check if 90 percent of the target subject's data points are in one cluster
+        targetSubjectClustered = [i for i in clusteredEpochs if i['subject'] == targetSubject]
+        counts = np.bincount([i['cluster'] for i in targetSubjectClustered])
+        print("####")
+        print(f"distribution {counts} with length {len(counts)}, iter = {num_iter}")
+        print("####")
+        # Check if 90 percent of the subject's datapoints are in one cluster
+        max_cluster = np.argmax(counts)
+        if counts[max_cluster] / len(targetSubjectClustered) > 0.60:
+            subjectsCluster = max_cluster
+            break
+        else:
+            print("Unable to cluster subject into one cluster with 60% datapoints")
+            num_iter = num_iter + 2500
+    if subjectsCluster == None:
+        max_cluster = np.argmax(counts)
+        subjectsCluster = max_cluster
+        print("##########################################")
+        print("last resort setting of cluster")
+        print("##########################################")
     def calc_percentage_subjects_per_cluster(arr):
         from collections import defaultdict
 
@@ -187,19 +211,8 @@ def cluster(targetSubject, subjectObject, video_data, data_npy, annotations_arr)
 
     # NOTE will need to change when testing more than two clusters 
     #which cluster does the subject belong to 
-    subjectsCluster = 1
-    clusterCount0 = 0;
-    clusterCount1 = 0;
-    for x in targetClustered:
-        if x['cluster'] == 0:
-            clusterCount0 = clusterCount0 + 1
-        else:
-            clusterCount1 = clusterCount1 + 1
-
-    if clusterCount0 > clusterCount1: 
-        subjectsCluster = 0
-
     # create json 
+
     subject = scj.Subject(targetSubject)
     #str, testingIndices: [], trainingIndices: [], similarIndices: [] = None
 
@@ -225,16 +238,17 @@ def cluster(targetSubject, subjectObject, video_data, data_npy, annotations_arr)
                 thisEpochs.append(x['epoch'])
 
     class_n.appendSimilar(thisSubject, thisEpochs, thisIndices)
+    print("###############END OF Class#############")
     return class_n
 #NOTE end of func 
 
 
 #TODO mainloop 
 exclude = [88, 89, 92, 100, 104]
-subjects = [x for x in range(1, 110) if x not in exclude]
+subjects = [x for x in range(31, 110) if x not in exclude]
 
 dirPath = clusteringPath + dataset + "/"
-os.mkdir(dirPath)
+#os.mkdir(dirPath)
 
 for x in subjects:
     print(f"Clustering for subject {x}")

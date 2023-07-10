@@ -7,8 +7,9 @@ import numpy as np
 import mne
 import data
 from multiprocessing import Process, freeze_support
+import paths
 
-savePath = "./proccessedDB"
+savePath = paths.dirBase + "trials/"
 
 
 def preprocessSave(subjectRange):
@@ -22,8 +23,7 @@ def preprocessSave(subjectRange):
 			raw = data.preproccess(subject, run, raw)
 			saveName = 'S'+str(subject)+'_'+str(run)+'.edf'
 			thisSavePath = os.path.join(savePath, saveName)
-			mne.export.export_raw(thisSavePath, raw, fmt='auto', physical_range='auto',
-			                      add_ch_type=False, overwrite=True)  # , verbose=None)
+			#mne.export.export_raw(thisSavePath, raw, fmt='auto', physical_range='auto',add_ch_type=False, overwrite=True)  # , verbose=None)
 			data.epoches(subject, run, raw)
 			print("done with epoches")
 			print("exported subject"+str(subject)+", run: "+str(run))

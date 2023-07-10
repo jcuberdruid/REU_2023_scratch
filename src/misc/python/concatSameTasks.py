@@ -4,14 +4,13 @@ import os
 
 def merge_csvs(files):
     df = pd.DataFrame()
-    for file in files:
+    for index, file in enumerate(files):
+        print()
+        print(f"{index}: {file}")
+        print()
         data = pd.read_csv(file)
         df = pd.concat([df, data], axis=0)
     return df 
-    #df.to_csv('merged_files.csv', index=False)
-
-
-    fileStrin = f"S{s}_T{epoch}.csv"
 
 inTakeDir = "epoches/"
 
@@ -34,12 +33,12 @@ for s in range(1, 110):
             task3Files.append(inTakeDir+fileStart+str(r)+fileEnd)
         for r in range(6,15,4):
             task4Files.append(inTakeDir+fileStart+str(r)+fileEnd)
-        print(f"T{e}: ")
-        print(task1Files) 
-        print(task2Files) 
-        print(task3Files) 
-        print(task4Files) 
-        outputDir = "epochesCatSameTasks/"
+        #print(f"T{e}: ")
+        #print(task1Files) 
+        #print(task2Files) 
+        #print(task3Files) 
+        #print(task4Files) 
+        outputDir = "./epochesCatSameTasks/"
         task1Merged = merge_csvs(task1Files)
         task2Merged = merge_csvs(task2Files)
         task3Merged = merge_csvs(task3Files)

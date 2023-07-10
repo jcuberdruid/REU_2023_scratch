@@ -2,10 +2,11 @@ import numpy as np
 import os
 import csv
 from dataclasses import dataclass
+import paths
 
-classesPath = "../../data/datasets/unproccessed/classes/"
+classesPath = paths.dirBase+"classes/"
 projectionPath = "../../data/channelProjection.npy"
-outputDir = "../../data/datasets/unproccessed/sequences"
+outputDir = paths.dirBase+"sequences/"
 #file = "MM_RLH_T1.csv"
 # csv_file = classesPath + file
 output = []
@@ -22,26 +23,6 @@ class AnnotationStruct:
     epoch: int
 
 
-def nicePrintNP(arr):
-    padding = 2
-    max_length = max(len(element) for row in arr for element in row)
-    format_str = '{:<' + str(max_length + padding) + '}'
-    for row in arr:
-        for element in row:
-            print(format_str.format(element), end='')
-        print()
-
-
-def nicePrintNPFloat(arr):
-    padding = 2
-    max_length = max(len(str(element)) for row in arr for element in row)
-    format_str = '{:<' + str(max_length + padding) + '}'
-    for row in arr:
-        for element in row:
-            print(format_str.format(element), end='')
-        print()
-
-
 def replace_indices_with_values(dictionary, array):
     float_array = np.zeros(array.shape, dtype=np.float64)
     for i in range(array.shape[0]):
@@ -52,27 +33,38 @@ def replace_indices_with_values(dictionary, array):
     return float_array
 
 
-# XXX add overlap here: (buffer of 10 added back to head of chunk list for 90-10 overlap)
 def processChunk(chunk):
     global chunkCount
     global count
-    chunkCount=chunkCount+1
+    countNumberLoops = 0
+    print(f"chunkCount {chunkCount}, should get to higher than 18k")
+    print(f"length of chunk {len(chunk)}")
+    #chunk.pop(0)
+    chunkCount = chunkCount + 1
     sequence_array = []
-    chunk0 = chunk.pop(0)
     while chunk:
+        chunkBuffer = chunk.copy()  # holds buffer 
+        #print(f"length of chunk: {len(chunk)}")
+        countNumberLoops = countNumberLoops + 1
+        #print(countNumberLoops)
         frame_array = []
         if len(chunk) < 80:
+            print("breaking")
             break
-        for _ in range(80):
-            frame_array.append(
-                replace_indices_with_values(chunk.pop(0), array))
-        annotation = AnnotationStruct(chunkIndex=chunkCount, index=count, subject=int(chunk0['subject']), run=int(chunk0['run']), epoch=int(chunk0['epoch'])) 
+        for i, _ in enumerate(range(80)):
+            chunkPopped = chunkBuffer.pop(0)
+            frame_array.append(replace_indices_with_values(chunkPopped, array))
+        annotation = AnnotationStruct(chunkIndex=chunkCount, index=count, subject=int(chunkBuffer[0]['subject']), run=int(chunkBuffer[0]['run']), epoch=int(chunkBuffer[0]['epoch']))
         count = count + 1
         chunkAnnotations.append(annotation)
         sequence_array.append(frame_array)
+        for _ in range(40):
+            chunk.pop(0)
+
     output.extend(sequence_array)
 
-def write_annoation_csv(data: list, csv_name: str):
+
+def write_annotation_csv(data: list, csv_name: str):
     fieldnames = data[0].__dict__.keys()
 
     with open(csv_name, 'w', newline='') as csvfile:
@@ -115,7 +107,8 @@ def chunkEach(csv_file):
         # Group rows based on specified keys while preserving order
         key_columns = ['subject', 'epoch', 'run']
         row_groups = group_rows_preserve_order(rows, key_columns)
-
+        #print(len(row_groups))
+        #print(len(row_groups[0])) # 4 seconds
         # Process each chunk
         for chunk in row_groups:
             processChunk(chunk)
@@ -132,6 +125,7 @@ def get_csv_files(directory):
 csv_files_list = get_csv_files(classesPath)
 
 for x in csv_files_list:
+    print(f"proccessing file {x}")
     chunkEach(x)
     count = 0
     outputNp = np.array(output)
@@ -139,6 +133,6 @@ for x in csv_files_list:
     npy_path = outputDir+x+".npy"
     np.save(npy_path, outputNp)
     output.clear()
-    write_annoation_csv(chunkAnnotations, os.path.splitext(npy_path)[0] + "_annotation.csv")
+    write_annotation_csv(chunkAnnotations, os.path.splitext(npy_path)[0] + "_annotation.csv")
     chunkAnnotations.clear()
     chunkCount = 0

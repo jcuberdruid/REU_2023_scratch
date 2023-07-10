@@ -1,9 +1,10 @@
 import pandas as pd
 import re
 import os
+import paths
 
-directory_path = "../../data/datasets/unproccessed/tasks/"
-output_path = "../../data/datasets/unproccessed/classes" 
+directory_path = paths.dirBase + "tasks/"
+output_path = paths.dirBase + "classes/" 
 
 def get_file_paths(directory):
     file_paths = []
@@ -47,7 +48,7 @@ for file_path in paths_array:
 for i, pattern in enumerate(patterns):
     print(f"Files matching pattern '{pattern}':")
     print(len(sorted_arrays[i]))
-    file_name = output_path + "/" + pattern + ".csv"
+    file_name = output_path + pattern + ".csv"
     merge_csvs(sorted_arrays[i], file_name)
     print()
 
