@@ -19,11 +19,23 @@ from keras.models import Model
 from keras.optimizers import adam
 from tensorflow.keras.optimizers import Adam
 import jsonLog as JL
+import importlib
+
+#command Line arguments 
+
+#ex `model_name` t
+model_name = sys.argv[2] 
+subdirectory = "models"
+model_name = model_name.strip(".py")
+module_name = f"{subdirectory}.{model_name}"
+#module_name = f"{subdirectory}.module_{model_name}"
+module = importlib.import_module(module_name)
+testSubjects = json.loads(sys.argv[1])
 
 accuracy = None
 loss = None
 
-dataset = "processed4"
+dataset = sys.argv[3]
 
 # generalization: specific output classes
 # output expirment data
@@ -197,38 +209,7 @@ def classify(training_data_array, testing_data_array):
     # Reshape the data to match the input shape for the 3D-CNN
     # Define the model
 
-    input_layer = Input((80, 17, 17, 1))
-    model = keras.Sequential()    
-
-    # Input layer
-    model.add(Input(shape=(80, 17, 17, 1), dtype="float32", name="input_layer"))
-
-    # Conv3D layer
-    model.add(Conv3D(filters=32, kernel_size=(5, 1, 1), strides=(1, 1, 1), padding='valid', data_format='channels_last', activation='relu', name='conv3d'))
-
-    # Dropout layer
-    model.add(Dropout(rate=0.3, name="dropout"))
-
-    # Flatten layer
-    model.add(Flatten(data_format="channels_last", name="flatten"))
-
-    # Reshape layer
-    model.add(Reshape(target_shape=(-1, 702848), name="reshape"))
-
-    # First GRU layer
-    model.add(GRU(units=80, return_sequences=True, activation='tanh', recurrent_activation='sigmoid', name='gru'))
-
-    # Second Dropout layer
-    model.add(Dropout(rate=0.5, name="dropout_1"))
-
-    # Second GRU layer
-    model.add(GRU(units=80, return_sequences=False, activation='tanh', recurrent_activation='sigmoid', name='gru_1'))
-
-    # Dense layers
-    model.add(Dense(units=512, activation='relu', name='dense'))
-    model.add(Dropout(rate=0.5, name="dropout_2"))
-    model.add(Dense(units=256, activation='relu', name='dense_1'))
-    model.add(Dense(units=2, activation='softmax', name='dense_2'))
+    model = module.model()
 
     model.summary()
     config = model.to_json()
@@ -245,7 +226,7 @@ def classify(training_data_array, testing_data_array):
     dropout_callback = DynamicDropoutCallback(threshold=0.1, high_dropout=0.8, low_dropout=0.4)
     json_logger = JL.JSONLogger('epoch_performance.json')
     # Compile the model
-    model.fit(train_data, train_labels, epochs=50, batch_size=100,
+    model.fit(train_data, train_labels, epochs=50, batch_size=50,
               validation_data=(test_data, test_labels), callbacks=[
                   json_logger,
                   keras.callbacks.EarlyStopping(monitor='val_accuracy', patience=5),
@@ -304,7 +285,7 @@ def runSubject(testingSubjects):
     print(f"running subject: {testingSubjects[0]}") 
     print("###############################################################")
     subjects = []
-    npy_label_1  
+    #npy_label_1  
     #class1 = 3 : MI_RLH_T1.npy
     class1 = 3
     #class2 = 4 : MI_RLH_T2.npy
@@ -312,7 +293,7 @@ def runSubject(testingSubjects):
     #S41_clustering_log_2023_07_06_10_36_39 
     #json Path 
     #jsonPath = '../clustering_logs/processed/S51_clustering_log_2023_07_06_10_39_21'
-    jsonPath = '../clustering_logs/processed4/' + get_subject_file('../clustering_logs/processed4/', testingSubjects[0])
+    jsonPath = '../logs/clustering_logs/processed4/' + get_subject_file('../logs/clustering_logs/processed4/', testingSubjects[0])
     print(jsonPath)
     data_1 = (np.array(data_for_subject(npy_label_1, get_similar_indices(class1, jsonPath))))
     data_2 = (np.array(data_for_subject(npy_label_2, get_similar_indices(class2, jsonPath))))
@@ -345,4 +326,4 @@ def runSubject(testingSubjects):
     JL.make_logs()
 
 
-runSubject([int(sys.argv[1])])
+runSubject(testSubjects)

@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 from tensorflow import keras
 
-outputPath = '../tf_perf_logs/'
+outputPath = '../logs/tf_perf_logs/'
 
 epochJson = None 
 modelJson = None 
