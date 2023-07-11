@@ -7,6 +7,16 @@ import matplotlib.pyplot as plt
 path = "../../data/datasets/processed4/sequences/MM_RLH_T1.npy"
 pathannotations = "../../data/datasets/processed4/sequences/MM_RLH_T1_annotations.csv"
 
+
+annotations = []
+with open(pathannotations, "r") as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            annotations_arr.append(row)
+    annotations.append(annotations_arr)
+
+print(annotations[0])
+quit()
 npyLoad = np.load(path)
 print(npyLoad.shape)
 
