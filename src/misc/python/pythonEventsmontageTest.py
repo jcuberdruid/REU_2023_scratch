@@ -22,7 +22,7 @@ builtin_montages = mne.channels.get_builtin_montages(descriptions=True)
 mne.rename_channels(raw.info, mapping, allow_duplicates=False, verbose=None)
 
 # load standard 10-10 montage (actually the 10-5 montage which is extended 10-10)
-montage_1010 = mne.channels.make_standard_montage("standard_1020")
+montage_1010 = mne.channels.make_standard_montage("standard_1005")
 
 # set standard 10-10 montage to raw data
 raw.set_montage(montage_1010, match_case=False)

@@ -32,8 +32,35 @@ def replace_indices_with_values(dictionary, array):
                 float_array[i, j] = float(dictionary[index])
     return float_array
 
-
 def processChunk(chunk):
+    global chunkCount
+    global count
+    chunkCount += 1
+    sequence_array = []
+
+    # Make sure chunk is exactly 4 seconds (640 samples)
+    if len(chunk) > 640:
+        chunk = chunk[:640]
+
+    while len(chunk) >= 80:
+        # Start of the sub epoch
+        chunkSlice = chunk[:80]
+        frame_array = []
+        for x in chunkSlice:
+            frame_array.append(replace_indices_with_values(x, array))
+        sequence_array.append(frame_array)
+
+        # Add to annotations
+        annotation = AnnotationStruct(chunkIndex=chunkCount, index=count, subject=int(chunk[0]['subject']), run=int(chunk[0]['run']), epoch=int(chunk[0]['epoch']))
+        chunkAnnotations.append(annotation)
+
+        # Move to the next overlapping sub epoch
+        chunk = chunk[40:]
+        count += 1
+
+    output.extend(sequence_array)
+
+def processChunkOld(chunk):
     global chunkCount
     global count
     countNumberLoops = 0
@@ -60,7 +87,7 @@ def processChunk(chunk):
         sequence_array.append(frame_array)
         for _ in range(40):
             chunk.pop(0)
-
+    print(sequence_array)
     output.extend(sequence_array)
 
 

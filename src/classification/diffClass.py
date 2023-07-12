@@ -115,15 +115,12 @@ def get_indices_for_subject(csv_file, subjects):
     print(len(indices))
     return indices
 
+#XXX so just need to write a script to open and read the indices from the json files
 def data_for_subject(npy_file, indices):
-    print(f"data_for_subject indices {len(indices)}")
     npySubSet = []
     npyLoad = np.load(npy_file)
-    print(f"npyLoad is of shape {npyLoad.shape} and indices is of length {len(indices)}")
-    maxAxis = (npyLoad.shape[0])-1
     for x in indices:
-        if x <= maxAxis: 
-            npySubSet.append(npyLoad[x])
+        npySubSet.append(npyLoad[x])
     return npySubSet
 
 def get_similar_indices(class_number, json_filename):
@@ -143,7 +140,6 @@ def get_similar_indices(class_number, json_filename):
 def create_data(csv_label, subjects, npy_label):
     indices_label = get_indices_for_subject(csv_label, subjects)
     npyData_label = np.array(data_for_subject(npy_label, indices_label))
-    print(f" npy data label in create data {npyData_label.shape}")
     # np.save('label.npy', npyData_label)
     # return np.load('label.npy')
     return npyData_label
@@ -188,9 +184,6 @@ def classify(training_data_array, testing_data_array):
     training_labels = np.concatenate(make_labels(training_data_array), axis=0)
 
     # Concatenate testing  data and labels
-    print(testing_data_array[0].shape)
-    print(testing_data_array[1].shape)
-
     testing_data = np.concatenate(testing_data_array, axis=0)
     testing_labels = np.concatenate(make_labels(testing_data_array), axis=0)
 
@@ -311,15 +304,11 @@ def runSubject(testingSubjects):
     #data_2 = create_data(csv_label_2, subjects, npy_label_2)
 
     print(f"data_1 is {data_1.shape}")
-    print(f"data_2 is {data_2.shape}")
 
     test_data_1 = (np.array(data_for_subject(npy_label_1, get_testing_indices(class1, jsonPath))))
     test_data_2 = (np.array(data_for_subject(npy_label_2, get_testing_indices(class2, jsonPath))))
     np.random.shuffle(test_data_1)
     np.random.shuffle(test_data_2)
-
-    print(test_data_1.shape)
-    print(test_data_2.shape)
 
     #test_data_1 = create_data(csv_label_1_testing, testingSubjects, npy_label_1_testing)
     #test_data_2 = create_data(csv_label_2_testing, testingSubjects, npy_label_2_testing)
@@ -338,3 +327,4 @@ def runSubject(testingSubjects):
 
 
 runSubject(testSubjects)
+
