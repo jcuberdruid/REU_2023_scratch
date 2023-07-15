@@ -1,0 +1,3 @@
+logs/
+*.deb
+src/*.hdf5

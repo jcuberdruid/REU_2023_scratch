@@ -41,11 +41,12 @@ if __name__ == "__main__":
         print(f'Testing subjects: {args.test_subjects}')
     if args.set_config:
         config.setConfig()
+        quit()
     #get defaults 
     defaults = config.readConfig()
     #call subEpochs with testSubject, model, dataset 
     json_test_subjects = json.dumps(args.test_subjects)
-    subprocess.run(['python3', './classification/classify.py', json_test_subjects, defaults['model'], defaults['dataset']])
+    subprocess.run(['python3', './classification/classify.py', json_test_subjects, defaults['model'], defaults['dataset'], defaults['clusterset']])
 
 # -v: verbose but in what way? (which subject working on vs epoch performance (could make custom callbacks to do both + env variables)
 # -q: send all output to /dev/null

@@ -2,7 +2,7 @@ import numpy as np
 import os
 
 # List of file paths
-pathNPY = "../../../data/datasets/processed/sequences/"
+pathNPY = "../../../data/datasets/processed7/sequences/"
 
 def print_npy_info(directory):
     for filename in os.listdir(directory):

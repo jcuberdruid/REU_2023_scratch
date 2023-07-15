@@ -30,14 +30,17 @@ class JSONLogger(keras.callbacks.Callback):
         global epochJson
         epochJson = self.log_data
 
-def output_log(training_subjects, testing_subjects, training_files, testing_files, accuracy):
+def output_log(training_subjects, testing_subjects, training_files, testing_files, accuracy, run_note, dataset, batch_size):
     # Create a dictionary to hold the data
     data = {
         "training_subjects": training_subjects,
         "testing_subjects": testing_subjects,
         "training_files": training_files,
         "testing_files": testing_files,
-        "accuracy": accuracy
+        "accuracy": accuracy,
+        "run_note":run_note,
+        "dataset":dataset,
+        "batch_size":batch_size
     }
 
     global outputJson 

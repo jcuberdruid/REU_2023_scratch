@@ -11,13 +11,13 @@ import subjectClusterJson as scj
 from datetime import datetime
 import time
 
-clusteringPath = '../../clustering_logs/'
+clusteringPath = '../../logs/clustering_logs/'
 
-dataset = "processed4" #NOTE change this for different preproccessing 
+dataset = "processed7" #NOTE change this for different preproccessing 
 dataPath = f"../../data/datasets/{dataset}/sequences/"
 
-annotationsPath = ["MI_FF_T1_annotation.csv","MI_FF_T2_annotation.csv","MI_RLH_T1_annotation.csv","MI_RLH_T2_annotation.csv"]#,"MM_FF_T1_annotation.csv","MM_FF_T2_annotation.csv","MM_RLH_T1_annotation.csv","MM_RLH_T2_annotation.csv"]
-dataFiles = ["MI_FF_T1.npy","MI_FF_T2.npy","MI_RLH_T1.npy","MI_RLH_T2.npy"]#,"MM_FF_T1.npy","MM_FF_T2.npy","MM_RLH_T1.npy","MM_RLH_T2.npy"]
+annotationsPath = ["MI_FF_T1_annotation.csv"]#,"MI_FF_T2_annotation.csv","MI_RLH_T1_annotation.csv","MI_RLH_T2_annotation.csv","MM_FF_T1_annotation.csv","MM_FF_T2_annotation.csv","MM_RLH_T1_annotation.csv","MM_RLH_T2_annotation.csv"]
+dataFiles = ["MI_FF_T1.npy"]#,"MI_FF_T2.npy","MI_RLH_T1.npy","MI_RLH_T2.npy","MM_FF_T1.npy","MM_FF_T2.npy","MM_RLH_T1.npy","MM_RLH_T2.npy"]
 
 # for padding 
 fixed_column = 50 
@@ -115,11 +115,11 @@ def cluster(targetSubject, subjectObject, video_data, data_npy, annotations_arr,
         cluster_labels = np.zeros(n_videos)
         for i in range(n_videos):
             video_vector = video_data_2d[i]
-            cluster_labels[i] = som.winner(video_vector)[-1]
+            cluster_labels[i] = som.winner(video_vector)[-1] #contains indices 
 
         counts = np.bincount((cluster_labels.astype(int)))
 
-        clusteredEpochs = []
+        clusteredEpochs = [] ## contains dicts 
         for index, x in enumerate(annotations_arr):
             thisDict = {'subject': int(x['subject']), 'epoch': int(
                 x['epoch']), 'cluster': int(cluster_labels[index]), 'index':int(x['index'])}
@@ -245,7 +245,7 @@ def cluster(targetSubject, subjectObject, video_data, data_npy, annotations_arr,
 
 #TODO mainloop 
 exclude = [88, 89, 92, 100, 104]
-subjects = [x for x in range(31, 110) if x not in exclude]
+subjects = [x for x in range(1, 110) if x not in exclude]
 
 dirPath = clusteringPath + dataset + "/"
 #os.mkdir(dirPath)

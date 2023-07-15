@@ -85,8 +85,7 @@ def epoches(subject, test, raw):
     print(events)
     print("about to make epoches")
     baseline_interval = (-1, 0.0)  # Specify the baseline interval (e.g., 200 ms before the event)
-    epochs = mne.Epochs(raw, events[0], tmin=-1, tmax=4.0,
-                    event_id=event_dict, reject=None, baseline=baseline_interval, preload=True)
+    epochs = mne.Epochs(raw, events[0], tmin=-1, tmax=4.0,event_id=event_dict, reject=None, baseline=baseline_interval, preload=True)
 
     epochs.crop(tmin=0.0)  # Crop epochs to start at 0.0 seconds (remove the baseline period)
 

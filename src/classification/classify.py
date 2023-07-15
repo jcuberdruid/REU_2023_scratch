@@ -12,6 +12,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import tensorflow as tf
 import keras
+from keras.callbacks import ModelCheckpoint, EarlyStopping
 from keras.layers import Conv2D, Conv3D, Flatten, Dense, Dropout, Input, MaxPool3D, GRU, Reshape, TimeDistributed, LSTM, GlobalMaxPool2D, MaxPool2D, BatchNormalization
 from tensorflow.keras.initializers import GlorotUniform, Zeros, Orthogonal
 
@@ -21,24 +22,49 @@ from tensorflow.keras.optimizers import Adam
 import jsonLog as JL
 import importlib
 
-#command Line arguments 
 
-#ex `model_name` t
+##############################################################
+# Parse Args & non-edit Vars
+##############################################################
+
 model_name = sys.argv[2] 
 subdirectory = "models"
 model_name = model_name.strip(".py")
 module_name = f"{subdirectory}.{model_name}"
-#module_name = f"{subdirectory}.module_{model_name}"
 module = importlib.import_module(module_name)
 testSubjects = json.loads(sys.argv[1])
-
-accuracy = None
-loss = None
-
 dataset = sys.argv[3]
+clusterset = sys.argv[4]
+jsonDir = f"../logs/clustering_logs/{clusterset}/"
+print(jsonDir)
 
-# generalization: specific output classes
-# output expirment data
+#tf.keras.mixed_precision.set_global_policy('mixed_float16')
+
+# Set GPU memory growth option
+gpus = tf.config.experimental.list_physical_devices('GPU')
+if gpus:
+    try:
+        # Restrict TensorFlow to allocate only as much GPU memory as needed
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+        print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+    except RuntimeError as e:
+        # Print error message if setting GPU memory growth fails
+        print(e)
+
+
+##############################################################
+# Human Vars
+##############################################################
+
+batch_size = 146
+run_note = "KNN_Model_test" #XXX remember to turn on normalization if not using batch
+
+##############################################################
+# Data Sources
+##############################################################
+
 csv_label_1 = f"../data/datasets/{dataset}/sequences/MI_RLH_T1_annotation.csv"
 npy_label_1 = f"../data/datasets/{dataset}/sequences/MI_RLH_T1.npy"
 
@@ -161,6 +187,7 @@ def make_labels(data_array):
     return label_array
 
 
+# XXX turned off normalization to try batch normalization XXX 
 def prepareData(data):
     # Reshape the data to 2D
     data_2d = data.reshape((-1, data.shape[-1]))
@@ -211,38 +238,51 @@ def classify(training_data_array, testing_data_array):
     test_labels = testing_labels
 
     ######################################################################
-    # Main Model -- TODO implement logging (may have to save entire section)
+    # Main Model 
     ######################################################################
-    # Reshape the data to match the input shape for the 3D-CNN
-    # Define the model
 
-    model = module.model()
-
+    model = module.model(numLabels)
     model.summary()
     config = model.to_json()
     JL.model_log(config)
-   ######################################################################
+
     ######################################################################
-    # Create the optimizer with the desired learning rate
-    learning_rate = 1e-4
+    # Optimize
+    ######################################################################
+
+    learning_rate = 1e-5
     optimizer = Adam(learning_rate=learning_rate)
 
-    # Compile the model
-    model.compile(optimizer=optimizer,
-                  loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+    ######################################################################
+    # Call backs 
+    ######################################################################
+
+    filepath = "best_model.hdf5"
+    checkpoint = ModelCheckpoint(filepath, monitor='val_accuracy', verbose=1, save_best_only=True, mode='max')
+
     dropout_callback = DynamicDropoutCallback(threshold=0.1, high_dropout=0.8, low_dropout=0.4)
     json_logger = JL.JSONLogger('epoch_performance.json')
-    # Compile the model
-    model.fit(train_data, train_labels, epochs=50, batch_size=50,
-              validation_data=(test_data, test_labels), callbacks=[
-                  json_logger,
-                  keras.callbacks.EarlyStopping(monitor='val_accuracy', patience=5),
-               #   dropout_callback
-                ])
-    # Evaluate the model
+    earlystop = EarlyStopping(monitor='val_accuracy', patience=20,verbose=1, mode='max')
+
+    callbacks_list = [checkpoint, earlystop, json_logger]
+
+    ######################################################################
+    # Compile and fit model 
+    ######################################################################
+    global batch_size
+    model.compile(optimizer=optimizer,loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+    model.fit(train_data, train_labels, epochs=50, batch_size=batch_size,validation_data=(test_data, test_labels),callbacks=callbacks_list)
+
+    ######################################################################
+    # Evaluate the best model
+    ######################################################################
+
+    model.load_weights("best_model.hdf5")
     test_loss, test_accuracy = model.evaluate(test_data, test_labels)
+
     print('Test Loss:', test_loss)
-    print('Test Accuracy:', test_accuracy)
+    print('Test Accuracy: %.3f' % test_accuracy)
+
     global accuracy
     global loss
     accuracy = test_accuracy
@@ -300,15 +340,27 @@ def runSubject(testingSubjects):
     #S41_clustering_log_2023_07_06_10_36_39 
     #json Path 
     #jsonPath = '../clustering_logs/processed/S51_clustering_log_2023_07_06_10_39_21'
-    jsonPath = '../logs/clustering_logs/processed4/' + get_subject_file('../logs/clustering_logs/processed4/', testingSubjects[0])
+    jsonPath = jsonDir + get_subject_file(jsonDir, testingSubjects[0])
     print(jsonPath)
-    data_1 = (np.array(data_for_subject(npy_label_1, get_similar_indices(class1, jsonPath))))
-    data_2 = (np.array(data_for_subject(npy_label_2, get_similar_indices(class2, jsonPath))))
+    ###############################################################
+    # for clustering 
+    ###############################################################
+    #data_1 = (np.array(data_for_subject(npy_label_1, get_similar_indices(class1, jsonPath))))
+    #data_2 = (np.array(data_for_subject(npy_label_2, get_similar_indices(class2, jsonPath))))
+    #np.random.shuffle(data_1) 
+    #np.random.shuffle(data_2) 
+
+    ###############################################################
+    # for whole subject 
+    ###############################################################
+    subjects = [85, 67, 23, 43, 98, 108, 57, 68, 62, 83, 84, 93, 47, 37] 
+    data_1 = create_data(csv_label_1, subjects, npy_label_1)
+    data_2 = create_data(csv_label_2, subjects, npy_label_2)
+
+
     np.random.shuffle(data_1) 
     np.random.shuffle(data_2) 
 
-    #data_1 = create_data(csv_label_1, subjects, npy_label_1)
-    #data_2 = create_data(csv_label_2, subjects, npy_label_2)
 
     print(f"data_1 is {data_1.shape}")
     print(f"data_2 is {data_2.shape}")
@@ -331,9 +383,10 @@ def runSubject(testingSubjects):
     data = []
     data.append(data_1)
     data.append(data_2)
-
+    global batch_size
     classify(data, test_data)
-    JL.output_log(subjects, testingSubjects,training_files, testing_files, accuracy)
+    global run_note
+    JL.output_log(subjects, testingSubjects,training_files, testing_files, accuracy, run_note, dataset, batch_size)
     JL.make_logs()
 
 

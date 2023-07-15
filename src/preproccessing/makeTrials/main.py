@@ -57,9 +57,9 @@ def main():
     print("preprocessing PhysioNet database: 109 subjects, 14 records per subject")
     #preprocessSave((1,87))
     #preprocessSave((89,91))
-    preprocessSave((96, 99))
-    preprocessSave((101, 103))
-    preprocessSave((105, 109))
+    preprocessSave((93, 99))
+    #preprocessSave((101, 103))
+    #preprocessSave((105, 109))
     '''
     processes = []
     for x in range(concurrencyMult): 
