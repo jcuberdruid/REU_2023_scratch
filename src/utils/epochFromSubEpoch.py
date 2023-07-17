@@ -14,21 +14,24 @@ and add the next 14 numberse to convert to subepochs, or we leave the "similar i
 input: data.npy(n, 80, 17, 17), annotations.csv
 output: dataEpochs.npy(n/15, 1200, 17, 17), annotationsEpochs.npy
 '''
+import csv 
+import numpy as np
+
 #load data
 #load annotation
 path = "../../data/datasets/processed4/sequences/MM_RLH_T1.npy"
-pathannotations = "../../data/datasets/processed4/sequences/MM_RLH_T1_annotations.csv"
-
+pathannotations = "../../data/datasets/processed4/sequences/MM_RLH_T1_annotation.csv"
 
 #load annotation
 annotations = []
 with open(pathannotations, "r") as file:
         reader = csv.DictReader(file)
         for row in reader:
-            annotations_arr.append(row)
-    annotations.append(annotations_arr)
+            annotations.append(row)
 
-print(annotations[0])
 #load data
 npyLoad = np.load(path)
+
 print(npyLoad.shape)
+print(annotations[0])
+print(len(annotations))

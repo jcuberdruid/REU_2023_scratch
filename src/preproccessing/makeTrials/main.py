@@ -7,8 +7,9 @@ import numpy as np
 import mne
 import data
 from multiprocessing import Process, freeze_support
+import paths
 
-savePath = "../../../data/datasets/processed3/trials/"
+savePath = paths.dirBase + "trials/"
 
 
 def preprocessSave(subjectRange):
@@ -54,11 +55,11 @@ def main():
     print("concurrency set to process " +
           str(concurrencyMult) + " subjects at a time")
     print("preprocessing PhysioNet database: 109 subjects, 14 records per subject")
-    preprocessSave((1,87))
-    preprocessSave((89,91))
+    #preprocessSave((1,87))
+    #preprocessSave((89,91))
     preprocessSave((93, 99))
-    preprocessSave((101, 103))
-    preprocessSave((105, 109))
+    #preprocessSave((101, 103))
+    #preprocessSave((105, 109))
     '''
     processes = []
     for x in range(concurrencyMult): 

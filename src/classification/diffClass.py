@@ -1,4 +1,7 @@
 import multiprocessing
+import sys
+import os
+import json
 from keras import backend as K
 from keras.callbacks import Callback
 import numpy as np
@@ -9,31 +12,46 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import tensorflow as tf
 import keras
-from keras.layers import Conv3D, Flatten, Dense, Dropout, Input, MaxPool3D, GRU, Reshape
+from keras.layers import Conv2D, Conv3D, Flatten, Dense, Dropout, Input, MaxPool3D, GRU, Reshape, TimeDistributed, LSTM, GlobalMaxPool2D, MaxPool2D, BatchNormalization
+from tensorflow.keras.initializers import GlorotUniform, Zeros, Orthogonal
+
 from keras.models import Model
 from keras.optimizers import adam
 from tensorflow.keras.optimizers import Adam
 import jsonLog as JL
+import importlib
+
+#command Line arguments 
+
+#ex `model_name` t
+model_name = sys.argv[2] 
+subdirectory = "models"
+model_name = model_name.strip(".py")
+module_name = f"{subdirectory}.{model_name}"
+#module_name = f"{subdirectory}.module_{model_name}"
+module = importlib.import_module(module_name)
+testSubjects = json.loads(sys.argv[1])
 
 accuracy = None
 loss = None
 
+dataset = sys.argv[3]
+
 # generalization: specific output classes
 # output expirment data
+csv_label_1 = f"../data/datasets/{dataset}/sequences/MI_RLH_T1_annotation.csv"
+npy_label_1 = f"../data/datasets/{dataset}/sequences/MI_RLH_T1.npy"
 
-csv_label_1 = "../data/datasets/hilowonly/sequences/MI_RLH_T1_annotation.csv"
-npy_label_1 = "../data/datasets/hilowonly/sequences/MI_RLH_T1.npy"
-
-csv_label_2 = "../data/datasets/hilowonly/sequences/MI_RLH_T2_annotation.csv"
-npy_label_2 = "../data/datasets/hilowonly/sequences/MI_RLH_T2.npy"
+csv_label_2 = f"../data/datasets/{dataset}/sequences/MI_RLH_T2_annotation.csv"
+npy_label_2 = f"../data/datasets/{dataset}/sequences/MI_RLH_T2.npy"
 
 training_files = [npy_label_1, npy_label_2]
 
-csv_label_1_testing = "../data/datasets/hilowonly/sequences/MI_RLH_T1_annotation.csv"
-npy_label_1_testing = "../data/datasets/hilowonly/sequences/MI_RLH_T1.npy"
+csv_label_1_testing = f"../data/datasets/{dataset}/sequences/MI_RLH_T1_annotation.csv"
+npy_label_1_testing = f"../data/datasets/{dataset}/sequences/MI_RLH_T1.npy"
 
-csv_label_2_testing = "../data/datasets/hilowonly/sequences/MI_RLH_T2_annotation.csv"
-npy_label_2_testing = "../data/datasets/hilowonly/sequences/MI_RLH_T2.npy"
+csv_label_2_testing = f"../data/datasets/{dataset}/sequences/MI_RLH_T2_annotation.csv"
+npy_label_2_testing = f"../data/datasets/{dataset}/sequences/MI_RLH_T2.npy"
 
 testing_files = [npy_label_1_testing, npy_label_2_testing]
 
@@ -93,16 +111,30 @@ def get_indices_for_subject(csv_file, subjects):
                 # Convert subject to integer
                 if int(row['subject']) == subject and int(row['index']) % 9 != 0:
                     indices.append(int(row['index']))
+    #random.shuffle(indices)
     print(len(indices))
     return indices
 
-
+#XXX so just need to write a script to open and read the indices from the json files
 def data_for_subject(npy_file, indices):
     npySubSet = []
     npyLoad = np.load(npy_file)
     for x in indices:
         npySubSet.append(npyLoad[x])
     return npySubSet
+
+def get_similar_indices(class_number, json_filename):
+    with open(json_filename, 'r') as json_file:
+        json_data = json.load(json_file)
+
+    class_key = f"class_{class_number}"
+    if class_key not in json_data:
+        return []  # Return an empty list if the class number is not found
+
+    class_info = json_data[class_key]
+    similar_indices = class_info.get("similarIndices", [])
+
+    return similar_indices
 
 
 def create_data(csv_label, subjects, npy_label):
@@ -176,24 +208,9 @@ def classify(training_data_array, testing_data_array):
     ######################################################################
     # Reshape the data to match the input shape for the 3D-CNN
     # Define the model
-    input_layer = Input((80, 17, 17, 1))
-    conv1 = Conv3D(filters=8, kernel_size=(7, 3, 3), activation='relu')(input_layer)
-    dropout1 = Dropout(0.3)(conv1)
-    conv2 = Conv3D(filters=16, kernel_size=(5, 3, 3), activation='relu')(dropout1)
-    conv3 = Conv3D(filters=32, kernel_size=(3, 3, 3), activation='relu')(conv2)
-    flatten_layer = Flatten()(conv3)
-    print(flatten_layer.shape)
-    reshape_layer = Reshape((-1, flatten_layer.shape[1]))(flatten_layer)
-    print(reshape_layer.shape) 
-    gru_layer1 = GRU(units=80, return_sequences=True)(reshape_layer)
-    dropout2 = Dropout(0.5)(gru_layer1)
-    gru_layer2 = GRU(units=80)(dropout2)
 
-    dense_layer = Dense(units=1000, activation='relu')(gru_layer2)
+    model = module.model()
 
-    output_layer = Dense(units=numLabels, activation='softmax')(dense_layer)
-
-    model = Model(inputs=input_layer, outputs=output_layer)
     model.summary()
     config = model.to_json()
     JL.model_log(config)
@@ -209,9 +226,10 @@ def classify(training_data_array, testing_data_array):
     dropout_callback = DynamicDropoutCallback(threshold=0.1, high_dropout=0.8, low_dropout=0.4)
     json_logger = JL.JSONLogger('epoch_performance.json')
     # Compile the model
-    model.fit(train_data, train_labels, epochs=100, batch_size=200,
+    model.fit(train_data, train_labels, epochs=50, batch_size=50,
               validation_data=(test_data, test_labels), callbacks=[
-                  json_logger, 
+                  json_logger,
+                  keras.callbacks.EarlyStopping(monitor='val_accuracy', patience=5),
                #   dropout_callback
                 ])
     # Evaluate the model
@@ -224,29 +242,76 @@ def classify(training_data_array, testing_data_array):
     loss = test_loss
 
 
-def runSubject(testingSubject):
-    subjects = [x for x in range(1, 110) if x not in [88, 89, 92, 100, 104]]
-    random.shuffle(subjects)
+def get_testing_indices(class_number, json_filename):
+    with open(json_filename, 'r') as json_file:
+        json_data = json.load(json_file)
 
-    for index, x in enumerate(subjects):
-        if (x == testingSubject):
-            subjects.pop(index)
-            break
+    class_key = f"class_{class_number}"
+    if class_key not in json_data:
+        return []  # Return an empty list if the class number is not found
 
-    testingSubjects = []
-    testingSubjects.append(testingSubject)
+    class_info = json_data[class_key]
+    testing_indices = class_info.get("testingIndices", [])
 
-    # testingSubjects = [subjects[0]]
+    return testing_indices
 
-    data_1 = create_data(csv_label_1, subjects, npy_label_1)
-    data_2 = create_data(csv_label_2, subjects, npy_label_2)
+def get_subject_file(path, subject_number):
+    # convert subject_number to string and prepend "S" to it
+    subject_string = 'S' + str(subject_number) + '_'
+    
+    # list all files in the directory
+    files = os.listdir(path)
+    
+    # iterate over all files
+    for file in files:
+        # check if file starts with subject_string
+        if file.startswith(subject_string):
+            # if so, return file name
+            return file
+            
+    # if no file is found for the subject, return None
+    return None
+
+def runSubject(testingSubjects):
+
+    #print(get_similar_indices(1, "S1_clustering_log_2023_07_06_10_25_04"))
+    #data_for_subject(npy_file, indices):
+    #npyData_label = np.array(data_for_subject(npy_label, indices_label))
+
+    #exclude = testingSubjects + [88, 89, 92, 100, 104] 
+    #subjects = [x for x in range(1, 20) if x not in exclude]
+    #random.shuffle(subjects)
+    print("###############################################################")
+    print(f"running subject: {testingSubjects[0]}") 
+    print("###############################################################")
+    subjects = []
+    #npy_label_1  
+    #class1 = 3 : MI_RLH_T1.npy
+    class1 = 3
+    #class2 = 4 : MI_RLH_T2.npy
+    class2 = 4
+    #S41_clustering_log_2023_07_06_10_36_39 
+    #json Path 
+    #jsonPath = '../clustering_logs/processed/S51_clustering_log_2023_07_06_10_39_21'
+    jsonPath = '../logs/clustering_logs/processed4/' + get_subject_file('../logs/clustering_logs/processed4/', testingSubjects[0])
+    print(jsonPath)
+    data_1 = (np.array(data_for_subject(npy_label_1, get_similar_indices(class1, jsonPath))))
+    data_2 = (np.array(data_for_subject(npy_label_2, get_similar_indices(class2, jsonPath))))
+    np.random.shuffle(data_1) 
+    np.random.shuffle(data_2) 
+
+    #data_1 = create_data(csv_label_1, subjects, npy_label_1)
+    #data_2 = create_data(csv_label_2, subjects, npy_label_2)
 
     print(f"data_1 is {data_1.shape}")
 
-    test_data_1 = create_data(
-        csv_label_1_testing, testingSubjects, npy_label_1_testing)
-    test_data_2 = create_data(
-        csv_label_2_testing, testingSubjects, npy_label_2_testing)
+    test_data_1 = (np.array(data_for_subject(npy_label_1, get_testing_indices(class1, jsonPath))))
+    test_data_2 = (np.array(data_for_subject(npy_label_2, get_testing_indices(class2, jsonPath))))
+    np.random.shuffle(test_data_1)
+    np.random.shuffle(test_data_2)
+
+    #test_data_1 = create_data(csv_label_1_testing, testingSubjects, npy_label_1_testing)
+    #test_data_2 = create_data(csv_label_2_testing, testingSubjects, npy_label_2_testing)
     
     test_data = []
     test_data.append(test_data_1)
@@ -261,5 +326,5 @@ def runSubject(testingSubject):
     JL.make_logs()
 
 
+runSubject(testSubjects)
 
-runSubject(41)

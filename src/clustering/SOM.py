@@ -4,10 +4,12 @@ from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-path = "../../data/datasets/processed4/sequences/MM_RLH_T1.npy"
+path = "../../data/datasets/processed7/sequences/MM_RLH_T1.npy"
 epochs_annotation_array = []
 
 npyLoad = np.load(path)
+npyLoad = np.reshape(npyLoad, (2353, 1200, 17, 17))
+
 print(npyLoad.shape)
 
 video_data = npyLoad
@@ -24,7 +26,7 @@ def som(video_data, clusters):
 	som.random_weights_init(video_data_2d)
 
 	# Train the SOM
-	som.train_random(video_data_2d, num_iteration=1000)
+	som.train_random(video_data_2d, num_iteration=10000)
 
 	# Get the clustered labels for each video
 	cluster_labels = np.zeros(n_videos)
@@ -36,16 +38,17 @@ def som(video_data, clusters):
 
 
 print("#######################################################################################")
-cluster_labels = som(video_data, 10)
+cluster_labels = som(video_data, 20)
 #remove smaller bin
 counts = np.bincount(cluster_labels.astype(int))
 smaller_cluster_label = np.argmin(counts)
 mask = cluster_labels != smaller_cluster_label
 video_data = video_data[mask]
 print(video_data.shape)
+print(counts)
 print("#######################################################################################")
 
-
+quit()
 print("#######################################################################################")
 cluster_labels = som(video_data, 2)
 counts = np.bincount(cluster_labels.astype(int))

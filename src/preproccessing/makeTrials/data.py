@@ -27,7 +27,7 @@ def preproccessDep(subject, test, raw):
     ica.exclude = eog_inds
     
     # Apply the ICA to the raw data
-    raw_corrected = ica.apply(raw_filtered.copy())  # , verbose=None)
+    raw_corrected = ica.apply(raw_filtered.copy(), verbose=None)
 
     # due to very intentional experimentation best reults achieved with (0.1, 0.2) and no h_freq
     for cutoff in (0.1, 0.2):  # 0.1Hz 0.2Hz
@@ -40,7 +40,7 @@ def preproccessDep(subject, test, raw):
 
 def preproccess(subject, test, raw):
     # due to very intentional experimentation best results achieved with (0.1, 0.2) and no h_freq
-    raw_filtered = raw.copy().filter(l_freq=1, h_freq=79)  # , verbose=None)
+    raw_filtered = raw.copy().filter(l_freq=1, h_freq=30)  # , verbose=None)
 
     # set up and fit the ICA
     ica = mne.preprocessing.ICA(n_components=32, random_state=None, max_iter='auto')  # , verbose=None)
@@ -85,8 +85,7 @@ def epoches(subject, test, raw):
     print(events)
     print("about to make epoches")
     baseline_interval = (-1, 0.0)  # Specify the baseline interval (e.g., 200 ms before the event)
-    epochs = mne.Epochs(raw, events[0], tmin=-1, tmax=4.0,
-                    event_id=event_dict, reject=None, baseline=baseline_interval, preload=True)
+    epochs = mne.Epochs(raw, events[0], tmin=-1, tmax=4.0,event_id=event_dict, reject=None, baseline=baseline_interval, preload=True)
 
     epochs.crop(tmin=0.0)  # Crop epochs to start at 0.0 seconds (remove the baseline period)
 
@@ -110,7 +109,7 @@ def epoches(subject, test, raw):
     print(df1)
     saveNameDf1 = 'S'+str(subject)+'_'+str(test)+'_T1.csv'
     saveNameDf2 = 'S'+str(subject)+'_'+str(test)+'_T2.csv'
-    mne.export.export_raw('stdNoProccessS1_3.edf', raw, fmt='auto', physical_range='auto', add_ch_type=False, overwrite=True, verbose=None)
+    #mne.export.export_raw('stdNoProccessS1_3.edf', raw, fmt='auto', physical_range='auto', add_ch_type=False, overwrite=True, verbose=None)
     df1.insert(1, 'run', test)
     df1.insert(1, 'subject', subject)
     df2.insert(1, 'run', test)
@@ -138,7 +137,7 @@ def loadEEG(subject, test):
                         allow_duplicates=False, verbose=None)
 
     # load standard 10-10 montage (actually the 10-5 montage which is extended 10-10)
-    montage_1010 = mne.channels.make_standard_montage("standard_1020")
+    montage_1010 = mne.channels.make_standard_montage("standard_1005")
 
     # set standard 10-10 montage to raw data
     raw.set_montage(montage_1010, match_case=False)

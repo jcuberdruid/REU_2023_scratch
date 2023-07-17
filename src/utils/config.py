@@ -47,7 +47,7 @@ def setConfig():
     
     terminal_menu = TerminalMenu(list_files(paths.models), preview_command=highlight_file, preview_size=0.75)
     menu_entry_index = terminal_menu.show()
-    model = modelPaths[terminal_menu.show()]
+    model = modelPaths[terminal_menu.show()+1]
     print(f"model: {model}")
 
     terminal_menu = TerminalMenu(datasetPaths, title="available datasets")
