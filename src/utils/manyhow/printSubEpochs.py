@@ -2,15 +2,20 @@
 import numpy as np
 import csv
 
-pathannotations = "../../../data/datasets/processed/sequences/MM_RLH_T2_annotation.csv"
-pathNPY = "../../../data/datasets/processed/sequences/MM_RLH_T2.npy"
+pathannotations = "../../../data/datasets/processed7/sequences/MM_RLH_T2_annotation.csv"
+pathNPY = "../../../data/datasets/processed7/sequences/MM_RLH_T2.npy"
 
 data = np.load(pathNPY)
+
 #reshaped_array = data.reshape((33615, 80, 17, 17))
 
 #np.save(pathNPY, reshaped_array)
 
 print(data.shape)
+
+
+print(data[0][0])
+quit()
 
 # Select the first 17 elements of the first axis
 selected_data = data[:17]

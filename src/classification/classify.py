@@ -58,26 +58,26 @@ if gpus:
 # Human Vars
 ##############################################################
 
-batch_size = 146
-run_note = "KNN_Model_test" #XXX remember to turn on normalization if not using batch
+batch_size = 200
+run_note = "tuned_or_trained_first" #XXX remember to turn on normalization if not using batch
 
 ##############################################################
 # Data Sources
 ##############################################################
 
-csv_label_1 = f"../data/datasets/{dataset}/sequences/MI_RLH_T1_annotation.csv"
-npy_label_1 = f"../data/datasets/{dataset}/sequences/MI_RLH_T1.npy"
+csv_label_1 = f"../data/datasets/{dataset}/sequences/MI_RLH_T2_annotation.csv"
+npy_label_1 = f"../data/datasets/{dataset}/sequences/MI_RLH_T2.npy"
 
-csv_label_2 = f"../data/datasets/{dataset}/sequences/MI_RLH_T2_annotation.csv"
-npy_label_2 = f"../data/datasets/{dataset}/sequences/MI_RLH_T2.npy"
+csv_label_2 = f"../data/datasets/{dataset}/sequences/MI_FF_T2_annotation.csv"
+npy_label_2 = f"../data/datasets/{dataset}/sequences/MI_FF_T2.npy"
 
 training_files = [npy_label_1, npy_label_2]
 
-csv_label_1_testing = f"../data/datasets/{dataset}/sequences/MI_RLH_T1_annotation.csv"
-npy_label_1_testing = f"../data/datasets/{dataset}/sequences/MI_RLH_T1.npy"
+csv_label_1_testing = f"../data/datasets/{dataset}/sequences/MI_RLH_T2_annotation.csv"
+npy_label_1_testing = f"../data/datasets/{dataset}/sequences/MI_RLH_T2.npy"
 
-csv_label_2_testing = f"../data/datasets/{dataset}/sequences/MI_RLH_T2_annotation.csv"
-npy_label_2_testing = f"../data/datasets/{dataset}/sequences/MI_RLH_T2.npy"
+csv_label_2_testing = f"../data/datasets/{dataset}/sequences/MI_FF_T2_annotation.csv"
+npy_label_2_testing = f"../data/datasets/{dataset}/sequences/MI_FF_T2.npy"
 
 testing_files = [npy_label_1_testing, npy_label_2_testing]
 
@@ -165,11 +165,21 @@ def get_similar_indices(class_number, json_filename):
 
     return similar_indices
 
+def get_clustered_indices(class_number, json_filename):
+    with open(json_filename, 'r') as json_file:
+        json_data = json.load(json_file)
+    class_key = f"class_{class_number}"
+    if class_key not in json_data:
+        return []  # Return an empty list if the class number is not found
+    class_info = json_data[class_key]
+    training_indices = class_info.get("trainingIndices", [])
+    return training_indices
+
 
 def create_data(csv_label, subjects, npy_label):
     indices_label = get_indices_for_subject(csv_label, subjects)
     npyData_label = np.array(data_for_subject(npy_label, indices_label))
-    print(f" npy data label in create data {npyData_label.shape}")
+    print(f" npy data label in create data {npyData_label.shape}, indices_label {indices_label}")
     # np.save('label.npy', npyData_label)
     # return np.load('label.npy')
     return npyData_label
@@ -188,7 +198,7 @@ def make_labels(data_array):
 
 
 # XXX turned off normalization to try batch normalization XXX 
-def prepareData(data):
+def prepareDataOld(data):
     # Reshape the data to 2D
     data_2d = data.reshape((-1, data.shape[-1]))
     # Normalize the data
@@ -198,6 +208,13 @@ def prepareData(data):
     data_normalized = data_normalized.reshape(data.shape)
     return data_normalized
 
+def prepareData(data):
+    # NORMALIZE Sub-Epochs
+    data_min = np.min(data, axis=(1, 2, 3), keepdims=True)
+    data_max = np.max(data, axis=(1, 2, 3), keepdims=True)
+    epsilon = np.finfo(float).eps
+    data = (data - data_min) / (data_max - data_min + epsilon)
+    return data
 
 def classify(training_data_array, testing_data_array):
     # list of params
@@ -262,7 +279,7 @@ def classify(training_data_array, testing_data_array):
 
     dropout_callback = DynamicDropoutCallback(threshold=0.1, high_dropout=0.8, low_dropout=0.4)
     json_logger = JL.JSONLogger('epoch_performance.json')
-    earlystop = EarlyStopping(monitor='val_accuracy', patience=20,verbose=1, mode='max')
+    earlystop = EarlyStopping(monitor='val_accuracy', patience=10,verbose=1, mode='max')
 
     callbacks_list = [checkpoint, earlystop, json_logger]
 
@@ -334,33 +351,42 @@ def runSubject(testingSubjects):
     subjects = []
     #npy_label_1  
     #class1 = 3 : MI_RLH_T1.npy
-    class1 = 3
+    class1 = 4
     #class2 = 4 : MI_RLH_T2.npy
-    class2 = 4
+    class2 = 2
     #S41_clustering_log_2023_07_06_10_36_39 
     #json Path 
-    #jsonPath = '../clustering_logs/processed/S51_clustering_log_2023_07_06_10_39_21'
+    #global jsonDir
+    #print(f"the type of jsonDir is {type(jsonDir)}")
+    #print(f"the type of get subject file  is {type(get_subject_file(jsonDir, testingSubjects[0]))}")
     jsonPath = jsonDir + get_subject_file(jsonDir, testingSubjects[0])
     print(jsonPath)
     ###############################################################
     # for clustering 
     ###############################################################
-    #data_1 = (np.array(data_for_subject(npy_label_1, get_similar_indices(class1, jsonPath))))
-    #data_2 = (np.array(data_for_subject(npy_label_2, get_similar_indices(class2, jsonPath))))
+    data_1 = (np.array(data_for_subject(npy_label_1, get_similar_indices(class1, jsonPath))))
+    data_2 = (np.array(data_for_subject(npy_label_2, get_similar_indices(class2, jsonPath))))
     #np.random.shuffle(data_1) 
     #np.random.shuffle(data_2) 
 
     ###############################################################
     # for whole subject 
     ###############################################################
-    subjects = [85, 67, 23, 43, 98, 108, 57, 68, 62, 83, 84, 93, 47, 37] 
-    data_1 = create_data(csv_label_1, subjects, npy_label_1)
-    data_2 = create_data(csv_label_2, subjects, npy_label_2)
+    #subjects = [85, 67, 23, 43, 98, 108, 57, 68, 62, 83, 84, 93, 47, 37, 106] 
+    #data_1 = create_data(csv_label_1, subjects, npy_label_1)
+    #data_2 = create_data(csv_label_2, subjects, npy_label_2)
 
+    ###############################################################
+    # tuning for subject (currently based on clustered) 
+    ###############################################################
+    tuning_data_1 = (np.array(data_for_subject(npy_label_1, get_clustered_indices(class1, jsonPath))))
+    tuning_data_2 = (np.array(data_for_subject(npy_label_2, get_clustered_indices(class2, jsonPath))))
+    data_1 = np.concatenate((data_1, tuning_data_1), axis=0)
+    data_2 = np.concatenate((data_2, tuning_data_2), axis=0)
+   
 
     np.random.shuffle(data_1) 
     np.random.shuffle(data_2) 
-
 
     print(f"data_1 is {data_1.shape}")
     print(f"data_2 is {data_2.shape}")
