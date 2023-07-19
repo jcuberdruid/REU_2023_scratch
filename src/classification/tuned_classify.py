@@ -59,7 +59,7 @@ if gpus:
 ##############################################################
 
 batch_size = 200
-run_note = "tuned_or_trained_first" #XXX remember to turn on normalization if not using batch
+run_note = "tuned_70_30_split_all_v_1_Offical" #XXX remember to turn on normalization if not using batch
 
 ##############################################################
 # Data Sources
@@ -142,10 +142,8 @@ def get_indices_for_subject(csv_file, subjects):
     return indices
 
 def data_for_subject(npy_file, indices):
-    print(f"data_for_subject indices {len(indices)}")
     npySubSet = []
     npyLoad = np.load(npy_file)
-    print(f"npyLoad is of shape {npyLoad.shape} and indices is of length {len(indices)}")
     maxAxis = (npyLoad.shape[0])-1
     for x in indices:
         if x <= maxAxis: 
@@ -175,13 +173,19 @@ def get_clustered_indices(class_number, json_filename):
     training_indices = class_info.get("trainingIndices", [])
     return training_indices
 
+def get_testing_indices(class_number, json_filename):
+    with open(json_filename, 'r') as json_file:
+        json_data = json.load(json_file)
+    class_key = f"class_{class_number}"
+    if class_key not in json_data:
+        return []  # Return an empty list if the class number is not found
+    class_info = json_data[class_key]
+    testing_indices = class_info.get("testingIndices", [])
+    return testing_indices
 
 def create_data(csv_label, subjects, npy_label):
     indices_label = get_indices_for_subject(csv_label, subjects)
     npyData_label = np.array(data_for_subject(npy_label, indices_label))
-    print(f" npy data label in create data {npyData_label.shape}, indices_label {indices_label}")
-    # np.save('label.npy', npyData_label)
-    # return np.load('label.npy')
     return npyData_label
 
 ###############################################################
@@ -217,49 +221,51 @@ def prepareData(data):
     data = (data - data_min) / (data_max - data_min + epsilon)
     return data
 
-def classify(training_data_array, testing_data_array):
+def unison_shuffled_copies(a, b):
+    assert len(a) == len(b)
+    p = np.random.permutation(len(a))
+    return a[p], b[p]
+
+def classify(training_data_array, tune_data_array, testing_data_array):
+
     # list of params
     numLabels = len(training_data_array)
+
+    print("################################################################") ##NOTE should make this extensible for diff num classes
+    print(f"training data 1 is of length: {len(training_data_array[0])}")
+    print(f"training data 2 is of length: {len(training_data_array[1])}")
+    print(f"tune data 1 is of length: {len(tune_data_array[0])}")
+    print(f"tune data 2 is of length: {len(tune_data_array[1])}")
+    print(f"testing data 1 is of length: {len(testing_data_array[0])}")
+    print(f"testing data 2 is of length: {len(testing_data_array[1])}")
     print("################################################################")
-    print(len(training_data_array[0]))
-    print(len(testing_data_array[0]))
-    print("################################################################")
-    # Load label_1 and label_2 data from .npy files
-    # data_label_1 = np.load('label_1.npy')
-    # data_label_2 = np.load('label_2.npy')
 
     # Concatenate training data and labels
-    training_data = np.concatenate(training_data_array, axis=0)
-    training_labels = np.concatenate(make_labels(training_data_array), axis=0)
+    # Train
+    train_data = np.concatenate(training_data_array, axis=0)
+    train_labels = np.concatenate(make_labels(training_data_array), axis=0)
+    # Tune
+    tune_data = np.concatenate(tune_data_array, axis=0)
+    tune_labels = np.concatenate(make_labels(tune_data_array), axis=0)
+    # Test 
+    test_data = np.concatenate(testing_data_array, axis=0)
+    test_labels = np.concatenate(make_labels(testing_data_array), axis=0)
 
-    # Concatenate testing  data and labels
-    print(testing_data_array[0].shape)
-    print(testing_data_array[1].shape)
+    # Normalize
+    train_data = prepareData(train_data)
+    tune_data = prepareData(tune_data)
+    test_data = prepareData(test_data)
 
-    testing_data = np.concatenate(testing_data_array, axis=0)
-    testing_labels = np.concatenate(make_labels(testing_data_array), axis=0)
-
-    training_data_normalized = prepareData(training_data)
-    testing_data_normalized = prepareData(testing_data)
-
-    #np.random.shuffle(training_data_normalized)
-    #np.random.shuffle(testing_data_normalized)
-    print(training_data_normalized.shape)
-    print(testing_data_normalized.shape)
-
-    # Split the data into training and testing sets
-    # train_data, test_data, train_labels, test_labels = train_test_split(data_normalized, labels, test_size=0.1, random_state=42)
-
-    train_data = training_data_normalized
-    train_labels = training_labels
-    test_data = testing_data_normalized
-    test_labels = testing_labels
+    # Shuffle the labels and data in unision 
+    train_data, train_labels = unison_shuffled_copies(train_data, train_labels)
+    tune_data, tune_labels = unison_shuffled_copies(tune_data, tune_labels)
+    test_data, test_labels = unison_shuffled_copies(test_data, test_labels)
 
     ######################################################################
     # Main Model 
     ######################################################################
 
-    model = module.model(numLabels)
+    model = module.model(numLabels) ### in ./models
     model.summary()
     config = model.to_json()
     JL.model_log(config)
@@ -280,16 +286,29 @@ def classify(training_data_array, testing_data_array):
 
     dropout_callback = DynamicDropoutCallback(threshold=0.1, high_dropout=0.8, low_dropout=0.4)
     json_logger = JL.JSONLogger('epoch_performance.json')
-    earlystop = EarlyStopping(monitor='val_accuracy', patience=10,verbose=1, mode='max')
+    earlystop = EarlyStopping(monitor='val_accuracy', patience=5,verbose=1, mode='max')
 
     callbacks_list = [checkpoint, earlystop, json_logger]
 
     ######################################################################
-    # Compile and fit model 
+    # Compile and fit model : training
     ######################################################################
+
     global batch_size
     model.compile(optimizer=optimizer,loss='sparse_categorical_crossentropy', metrics=['accuracy'])
     model.fit(train_data, train_labels, epochs=50, batch_size=batch_size,validation_data=(test_data, test_labels),callbacks=callbacks_list)
+
+    ######################################################################
+    # Compile and fit model : tuning 
+    ######################################################################
+
+    optimizer = Adam(learning_rate=learning_rate)
+    earlystop = EarlyStopping(monitor='val_accuracy', patience=10,verbose=1, mode='max')
+
+    # load the weights that yielded the best validation accuracy
+    model.load_weights('best_model.hdf5')
+    model.compile(optimizer=optimizer,loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+    model.fit(tune_data, tune_labels, epochs=25, batch_size=50,validation_data=(test_data, test_labels),callbacks=callbacks_list)
 
     ######################################################################
     # Evaluate the best model
@@ -307,7 +326,7 @@ def classify(training_data_array, testing_data_array):
     loss = test_loss
 
 
-def get_testing_indices(class_number, json_filename):
+def get_testing_indices_Old(class_number, json_filename):
     with open(json_filename, 'r') as json_file:
         json_data = json.load(json_file)
 
@@ -339,70 +358,56 @@ def get_subject_file(path, subject_number):
 
 def runSubject(testingSubjects):
 
-    #print(get_similar_indices(1, "S1_clustering_log_2023_07_06_10_25_04"))
-    #data_for_subject(npy_file, indices):
-    #npyData_label = np.array(data_for_subject(npy_label, indices_label))
-
-    #exclude = testingSubjects + [88, 89, 92, 100, 104] 
-    #subjects = [x for x in range(1, 20) if x not in exclude]
-    #random.shuffle(subjects)
     print("###############################################################")
     print(f"running subject: {testingSubjects[0]}") 
     print("###############################################################")
     subjects = []
+
     #npy_label_1  
     #class1 = 3 : MI_RLH_T1.npy
     class1 = 4
     #class2 = 4 : MI_RLH_T2.npy
     class2 = 2
-    #S41_clustering_log_2023_07_06_10_36_39 
-    #json Path 
-    #global jsonDir
-    #print(f"the type of jsonDir is {type(jsonDir)}")
-    #print(f"the type of get subject file  is {type(get_subject_file(jsonDir, testingSubjects[0]))}")
+
     jsonPath = jsonDir + get_subject_file(jsonDir, testingSubjects[0])
-    print(jsonPath)
     ###############################################################
     # for clustering 
     ###############################################################
-    data_1 = (np.array(data_for_subject(npy_label_1, get_similar_indices(class1, jsonPath))))
-    data_2 = (np.array(data_for_subject(npy_label_2, get_similar_indices(class2, jsonPath))))
+    #data_1 = (np.array(data_for_subject(npy_label_1, get_similar_indices(class1, jsonPath))))
+    #data_2 = (np.array(data_for_subject(npy_label_2, get_similar_indices(class2, jsonPath))))
     #np.random.shuffle(data_1) 
     #np.random.shuffle(data_2) 
 
     ###############################################################
     # for whole subject 
     ###############################################################
-    #subjects = [85, 67, 23, 43, 98, 108, 57, 68, 62, 83, 84, 93, 47, 37, 106] 
-    #data_1 = create_data(csv_label_1, subjects, npy_label_1)
-    #data_2 = create_data(csv_label_2, subjects, npy_label_2)
+    testingSubjects = list(map(int, testingSubjects))
+    excluded_numbers = [88, 92, 100, 104, testingSubjects[0]]
+    subjects = [num for num in range(1, 110) if num not in excluded_numbers]
+    data_1 = create_data(csv_label_1, subjects, npy_label_1)
+    data_2 = create_data(csv_label_2, subjects, npy_label_2)
 
     ###############################################################
     # tuning for subject (currently based on clustered) 
     ###############################################################
     tuning_data_1 = (np.array(data_for_subject(npy_label_1, get_clustered_indices(class1, jsonPath))))
     tuning_data_2 = (np.array(data_for_subject(npy_label_2, get_clustered_indices(class2, jsonPath))))
-    data_1 = np.concatenate((data_1, tuning_data_1), axis=0)
-    data_2 = np.concatenate((data_2, tuning_data_2), axis=0)
-   
 
-    np.random.shuffle(data_1) 
-    np.random.shuffle(data_2) 
-
-    print(f"data_1 is {data_1.shape}")
-    print(f"data_2 is {data_2.shape}")
-
+    ###############################################################
+    # testing for subject (currently based on clustered) 
+    ###############################################################
     test_data_1 = (np.array(data_for_subject(npy_label_1, get_testing_indices(class1, jsonPath))))
     test_data_2 = (np.array(data_for_subject(npy_label_2, get_testing_indices(class2, jsonPath))))
+
+    # Shuffle all data
     np.random.shuffle(test_data_1)
     np.random.shuffle(test_data_2)
+    np.random.shuffle(data_1) 
+    np.random.shuffle(data_2) 
+    np.random.shuffle(tuning_data_1) 
+    np.random.shuffle(tuning_data_2) 
 
-    print(test_data_1.shape)
-    print(test_data_2.shape)
-
-    #test_data_1 = create_data(csv_label_1_testing, testingSubjects, npy_label_1_testing)
-    #test_data_2 = create_data(csv_label_2_testing, testingSubjects, npy_label_2_testing)
-    
+    # make arrays for each set of data
     test_data = []
     test_data.append(test_data_1)
     test_data.append(test_data_2)
@@ -410,10 +415,17 @@ def runSubject(testingSubjects):
     data = []
     data.append(data_1)
     data.append(data_2)
+
+    tune_data = []
+    tune_data.append(tuning_data_1)
+    tune_data.append(tuning_data_2)
+    print(f"tuning data 1 shape is {tuning_data_1.shape}")
+    print(f"tuning data 2 shape is {tuning_data_2.shape}")
+
     global batch_size
-    classify(data, test_data)
+    classify(data, tune_data, test_data)
     global run_note
-    JL.output_log(subjects, testingSubjects,training_files, testing_files, accuracy, run_note, dataset, batch_size)
+    JL.output_log(subjects, testingSubjects, training_files, testing_files, accuracy, run_note, dataset, batch_size)
     JL.make_logs()
 
 
