@@ -19,8 +19,9 @@ import numpy as np
 
 #load data
 #load annotation
-path = "../../data/datasets/processed4/sequences/MM_RLH_T1.npy"
-pathannotations = "../../data/datasets/processed4/sequences/MM_RLH_T1_annotation.csv"
+dataset = "processed8_50_Improved_kurtosis"
+path = f"../../data/datasets/{dataset}/sequences/MM_RLH_T1.npy"
+pathannotations = f"../../data/datasets/{dataset}/sequences/MM_RLH_T1_annotation.csv"
 
 #load annotation
 annotations = []
