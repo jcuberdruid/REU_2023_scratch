@@ -1,6 +1,4 @@
 import csv
-from collections import defaultdict
-from sklearn.cluster import KMeans
 import json
 import os
 import numpy as np
@@ -12,14 +10,16 @@ import random
 import subjectClusterJson as scj
 from datetime import datetime
 import time
+from sklearn.cluster import KMeans
+from sklearn.metrics import davies_bouldin_score
 
 clusteringPath = '../../logs/clustering_logs/'
 
-dataset = "processed8_50_Improved_kurtosis"
+dataset = "processed7" #NOTE change this for different preproccessing 
 dataPath = f"../../data/datasets/{dataset}/sequences/"
 
-annotationsPath = ["MI_FF_T1_annotation.csv","MI_FF_T2_annotation.csv","MI_RLH_T1_annotation.csv"]#,"MI_RLH_T2_annotation.csv"]#,"MM_FF_T1_annotation.csv","MM_FF_T2_annotation.csv","MM_RLH_T1_annotation.csv","MM_RLH_T2_annotation.csv"]
-dataFiles = ["MI_FF_T1.npy","MI_FF_T2.npy","MI_RLH_T1.npy"]#,"MI_RLH_T2.npy"]#,"MM_FF_T1.npy","MM_FF_T2.npy","MM_RLH_T1.npy","MM_RLH_T2.npy"]
+annotationsPath = ["MI_FF_T1_annotation.csv"]#,"MI_FF_T2_annotation.csv","MI_RLH_T1_annotation.csv","MI_RLH_T2_annotation.csv","MM_FF_T1_annotation.csv","MM_FF_T2_annotation.csv","MM_RLH_T1_annotation.csv","MM_RLH_T2_annotation.csv"]
+dataFiles = ["MI_FF_T1.npy"]#,"MI_FF_T2.npy","MI_RLH_T1.npy","MI_RLH_T2.npy","MM_FF_T1.npy","MM_FF_T2.npy","MM_RLH_T1.npy","MM_RLH_T2.npy"]
 
 # for padding 
 fixed_column = 50 
@@ -47,19 +47,11 @@ for x in dataFiles:
     print(loading_str, end='')
     padding = ' ' * (fixed_column - len(loading_str))
     path = (dataPath+x)
-
-    # NORMALIZE Sub-Epochs
-    npyLoad = np.load(path)
-    data_min = np.min(npyLoad, axis=(1, 2, 3), keepdims=True)
-    data_max = np.max(npyLoad, axis=(1, 2, 3), keepdims=True)
-    epsilon = np.finfo(float).eps
-    npyLoad = (npyLoad - data_min) / (data_max - data_min + epsilon) 
-
-    data.append(npyLoad)
+    data.append(np.load(path))
     print(f"{padding}done.")
 
 
-def cluster(targetSubject, subjectObject, video_data, data_npy, annotations_arr, start_clusters=5):
+def cluster(targetSubject, subjectObject, video_data, data_npy, annotations_arr, start_clusters=15):
     subject = subjectObject #TODO go back through and change subject variable name manually 
     print("###############START OF Class#############")
     # constants
@@ -85,7 +77,7 @@ def cluster(targetSubject, subjectObject, video_data, data_npy, annotations_arr,
     clusteringIndices = []
     testingIndices = []
 
-    split_ratio = 0.7
+    split_ratio = 0.9
     split_index = int(len(subjectIndices) * split_ratio)
 
     # Split the array
@@ -107,27 +99,26 @@ def cluster(targetSubject, subjectObject, video_data, data_npy, annotations_arr,
     subjectsCluster = None
     counts = None
     num_iter = 2000 
+
     for n_clusters in range(start_clusters, 1, -1):  # Start from 10 clusters and decrement until 2
+        # Rest of your code remains same...
         # Reshape the video data to 2D vectors
         n_videos, n_frames, width, height = video_data.shape
         video_data_2d = video_data.reshape(n_videos, n_frames * width * height)
 
-        # Create a SOM instance
-        som = MiniSom(x=1, y=start_clusters, input_len=n_frames * width * height, sigma=0.5, learning_rate=0.5)
+        # Create a KMeans instance
+        kmeans = KMeans(n_clusters=n_clusters, max_iter=num_iter, random_state=42)
 
-        # Initialize the SOM
-        som.random_weights_init(video_data_2d)
-
-        # Train the SOM
-        som.train_random(video_data_2d, num_iteration=10000)
+        # Train the KMeans
+        kmeans.fit(video_data_2d)
 
         # Get the clustered labels for each video
-        cluster_labels = np.zeros(n_videos)
-        for i in range(n_videos):
-            video_vector = video_data_2d[i]
-            cluster_labels[i] = som.winner(video_vector)[-1]
+        cluster_labels = kmeans.labels_
 
-        # Get the counts of each cluster
+        # Calculate the Davies-Bouldin Index for each cluster
+        dbi = davies_bouldin_score(video_data_2d, cluster_labels)
+        print(f"Davies-Bouldin Index for {n_clusters} clusters: {dbi}")
+
         counts = np.bincount(cluster_labels.astype(int))
 
         clusteredEpochs = [] ## contains dicts 
@@ -159,6 +150,7 @@ def cluster(targetSubject, subjectObject, video_data, data_npy, annotations_arr,
         print("last resort setting of cluster")
         print("##########################################")
     def calc_percentage_subjects_per_cluster(arr):
+        from collections import defaultdict
 
         # A dictionary to keep track of the unique clusters each subject is part of
         subject_cluster_map = defaultdict(set)
@@ -257,10 +249,8 @@ def cluster(targetSubject, subjectObject, video_data, data_npy, annotations_arr,
 exclude = [88, 89, 92, 100, 104]
 subjects = [x for x in range(1, 110) if x not in exclude]
 
-
-dirPath = clusteringPath + "processed8_50_kurtosis_Normalized_70_30" + "/"
-if not os.path.exists(dirPath):
-    os.mkdir(dirPath)
+dirPath = clusteringPath + dataset + "/"
+#os.mkdir("test_kmeans_DBI")
 
 for x in subjects:
     print(f"Clustering for subject {x}")

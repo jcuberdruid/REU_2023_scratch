@@ -144,7 +144,7 @@ def cluster(targetSubject, subjectObject, video_data, data_npy, annotations_arr,
 
     #NOTE change for KNN to instead add the lowest indices up to a certain ammount 
     for index, x in enumerate(clusteredEpochs):
-        if index <= 400 and x['subject'] != targetSubject:
+        if index <= 8000 and x['subject'] != targetSubject:
             if thisSubject != x['subject']:
                 class_n.appendSimilar(thisSubject, thisEpochs, thisIndices)
                 thisEpochs.clear()    
@@ -163,7 +163,7 @@ def cluster(targetSubject, subjectObject, video_data, data_npy, annotations_arr,
 exclude = [88, 89, 92, 100, 104]
 subjects = [x for x in range(40, 110) if x not in exclude]
 
-dirPath = clusteringPath + "proccessed7KNN_400ClosestAvg_8020_Manhatten" + "/"
+dirPath = clusteringPath + "proccessed7KNN_8000ClosestAvg_8020_Manhatten_new" + "/"
 if not os.path.exists(dirPath):
     os.mkdir(dirPath)
 
