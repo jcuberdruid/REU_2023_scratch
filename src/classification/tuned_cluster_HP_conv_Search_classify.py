@@ -1,5 +1,11 @@
 import multiprocessing
+from kerastuner import BayesianOptimization
 import sys
+from keras.models import Model
+from keras.optimizers import adam
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.regularizers import l1
 import os
 import json
 from keras import backend as K
@@ -59,7 +65,7 @@ if gpus:
 ##############################################################
 
 batch_size = 200
-run_note = "tuned_70_30_DS8_kurtosis_30_Jul_28_tuned_with_cutout_5" #XXX remember to turn on normalization if not using batch
+run_note = "tuned_70_30_DS8_kurtosis_30_properClusters_model5D_select_hyper" #XXX remember to turn on normalization if not using batch
 
 ##############################################################
 # Data Sources
@@ -116,39 +122,6 @@ class DynamicDropoutCallback(Callback): #XXX is meh
             for layer in self.model.layers:
                 if isinstance(layer, Dropout):
                     layer.rate = current_dropout
-
-def apply_cutout_on_dataset(dataset, cutout_size=2, p=0.25):
-    # Dataset shape: (n, 80, 17, 17)
-    # Cutout applied to: (80, 17, 17)
-
-    def apply_cutout_on_sample(sample):
-        # Sample shape: (80, 17, 17)
-        mask_value = sample.min()
-
-        h, w = sample.shape[1], sample.shape[2]
-        cutout_h = np.random.randint(cutout_size//2, cutout_size)
-        cutout_w = np.random.randint(cutout_size//2, cutout_size)
-
-        for _ in range(80):  # Apply cutout on each (17, 17) feature map
-            if np.random.rand() < p:
-                y = np.random.randint(h)
-                x = np.random.randint(w)
-
-                y1 = np.clip(y - cutout_h // 2, 0, h)
-                y2 = np.clip(y + cutout_h // 2, 0, h)
-                x1 = np.clip(x - cutout_w // 2, 0, w)
-                x2 = np.clip(x + cutout_w // 2, 0, w)
-
-                sample[:, y1:y2, x1:x2] = mask_value
-
-        return sample
-
-    # Apply the function on the dataset
-    dataset = np.array([apply_cutout_on_sample(sample) for sample in dataset])
-
-    return dataset
-
-
 
 def generate_random_numbers(length, trainingPercent):
     subjects = [x for x in range(1, 110) if x not in [88, 92, 100, 104]]
@@ -258,6 +231,57 @@ def unison_shuffled_copies(a, b):
     assert len(a) == len(b)
     p = np.random.permutation(len(a))
     return a[p], b[p]
+from kerastuner import HyperParameters
+
+def build_model(hp: HyperParameters):
+    input_layer = Input((80, 17, 17, 1))
+
+    # First stack
+    conv1 = Conv3D(filters=8, kernel_size=(13, 5, 4), activation='relu')(input_layer)
+    dropout1 = Dropout(hp.Float('dropout_1', min_value=0.0, max_value=0.5, step=0.1))(conv1)
+    batchnorm1 = BatchNormalization()(dropout1)
+    conv2 = Conv3D(filters=16, kernel_size=(9, 4, 4), activation='relu')(batchnorm1)
+    conv3 = Conv3D(filters=32, kernel_size=(5, 3, 3), activation='relu')(conv2)
+    flatten_layer = Flatten()(conv3)
+    reshape_layer = Reshape((-1, flatten_layer.shape[1]))(flatten_layer)
+    gru_layer1 = GRU(units=hp.Int('gru_units_1', min_value=32, max_value=128, step=32), return_sequences=True)(reshape_layer)
+    dropout2 = Dropout(hp.Float('dropout_2', min_value=0.0, max_value=0.5, step=0.1))(gru_layer1)
+    batchnorm2 = BatchNormalization()(dropout2)
+    gru_layer2 = GRU(units=hp.Int('gru_units_2', min_value=32, max_value=128, step=32))(batchnorm2)
+    dense_layer = Dense(units=hp.Int('dense_units_1', min_value=128, max_value=1024, step=128), activation='relu', kernel_regularizer=l1(0.005))(gru_layer2)
+
+    # Second stack
+    conv4 = Conv3D(filters=8, kernel_size=(11, 4, 3), activation='relu')(input_layer)
+    dropout3 = Dropout(hp.Float('dropout_3', min_value=0.0, max_value=0.5, step=0.1))(conv4)
+    batchnorm3 = BatchNormalization()(dropout3)
+    conv5 = Conv3D(filters=16, kernel_size=(7, 3, 3), activation='relu')(batchnorm3)
+    conv6 = Conv3D(filters=32, kernel_size=(3, 2, 2), activation='relu')(conv5)
+    flatten_layer2 = Flatten()(conv6)
+    reshape_layer2 = Reshape((-1, flatten_layer2.shape[1]))(flatten_layer2)
+    gru_layer3 = GRU(units=hp.Int('gru_units_3', min_value=32, max_value=128, step=32), return_sequences=True)(reshape_layer2)
+    dropout4 = Dropout(hp.Float('dropout_4', min_value=0.0, max_value=0.5, step=0.1))(gru_layer3)
+    batchnorm4 = BatchNormalization()(dropout4)
+    gru_layer4 = GRU(units=hp.Int('gru_units_4', min_value=32, max_value=128, step=32))(batchnorm4)
+    dense_layer2 = Dense(units=hp.Int('dense_units_2', min_value=128, max_value=1024, step=128), activation='relu', kernel_regularizer=l1(0.005))(gru_layer4)
+
+    # Merge the two stacks
+    merged = tf.keras.layers.concatenate([dense_layer, dense_layer2])
+
+    # Output layer
+    output_layer = Dense(units=2, activation='softmax')(merged)
+
+    model = Model(inputs=input_layer, outputs=output_layer)
+    model.summary()
+    config = model.to_json()
+    JL.model_log(config)
+
+    # Use a variable learning rate for the Adam optimizer
+    learning_rate = hp.Float('learning_rate', min_value=1e-5, max_value=1e-2, sampling='LOG')
+    optimizer = keras.optimizers.Adam(learning_rate=learning_rate)
+
+    model.compile(optimizer=optimizer, loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
+    return model
 
 def classify(training_data_array, tune_data_array, testing_data_array):
 
@@ -295,60 +319,54 @@ def classify(training_data_array, tune_data_array, testing_data_array):
     test_data, test_labels = unison_shuffled_copies(test_data, test_labels)
 
     ######################################################################
-    # Main Model 
+    # Keras Tuner - Bayesian Optimization 
     ######################################################################
 
-    model = module.model(numLabels) ### in ./models
-    model.summary()
-    config = model.to_json()
-    JL.model_log(config)
+    tuner = BayesianOptimization(
+        build_model,
+        objective='val_accuracy',
+        max_trials=100,  # adjust as needed
+        executions_per_trial=2,  # adjust as needed
+        directory='my_dir',
+        project_name='helloworld')
+
+    # Display search space summary
+    tuner.search_space_summary()
 
     ######################################################################
-    # Optimize
-    ######################################################################
-
-    learning_rate = 9.8747e-05
-    optimizer = Adam(learning_rate=learning_rate)
-
-    ######################################################################
-    # Call backs 
+    # Callbacks
     ######################################################################
 
     filepath = "best_model.hdf5"
     checkpoint = ModelCheckpoint(filepath, monitor='val_accuracy', verbose=1, save_best_only=True, mode='max')
-
-    dropout_callback = DynamicDropoutCallback(threshold=0.1, high_dropout=0.8, low_dropout=0.4)
-    json_logger = JL.JSONLogger('epoch_performance.json')
     earlystop = EarlyStopping(monitor='val_accuracy', patience=5,verbose=1, mode='max')
 
-    callbacks_list = [checkpoint, earlystop, json_logger]
+    callbacks_list = [checkpoint, earlystop]
 
     ######################################################################
-    # Compile and fit model : training
+    # Perform hyperparameter search
     ######################################################################
 
-    global batch_size
-    model.compile(optimizer=optimizer,loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-    model.fit(train_data, train_labels, epochs=50, batch_size=batch_size,validation_data=(test_data, test_labels),callbacks=callbacks_list)
+    tuner.search(train_data, train_labels,
+                 epochs=50,
+                 validation_data=(tune_data, tune_labels),
+                 callbacks=callbacks_list)
 
     ######################################################################
-    # Compile and fit model : tuning 
+    # Retrieve the best model.
     ######################################################################
-
-    optimizer = Adam(learning_rate=learning_rate)
-    earlystop = EarlyStopping(monitor='val_accuracy', patience=10,verbose=1, mode='max')
-
-    # load the weights that yielded the best validation accuracy
-    model.load_weights('best_model.hdf5')
-    model.compile(optimizer=optimizer,loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-    model.fit(tune_data, tune_labels, epochs=50, batch_size=50,validation_data=(test_data, test_labels),callbacks=callbacks_list)
-
+    best_model = tuner.get_best_models(num_models=1)[0]
+    # Save the model architecture
+    model_json = best_model.to_json()
+    with open("keras_tuner_model.json", "w") as json_file:
+        json_file.write(model_json)
+    # Save model weights
+    best_model.save_weights('model_weights.h5')
     ######################################################################
     # Evaluate the best model
     ######################################################################
 
-    model.load_weights("best_model.hdf5")
-    test_loss, test_accuracy = model.evaluate(test_data, test_labels)
+    test_loss, test_accuracy = best_model.evaluate(test_data, test_labels)
 
     print('Test Loss:', test_loss)
     print('Test Accuracy: %.3f' % test_accuracy)
@@ -357,7 +375,6 @@ def classify(training_data_array, tune_data_array, testing_data_array):
     global loss
     accuracy = test_accuracy
     loss = test_loss
-
 
 def get_testing_indices_Old(class_number, json_filename):
     with open(json_filename, 'r') as json_file:
@@ -407,9 +424,7 @@ def runSubject(testingSubjects):
     # for clustering 
     ###############################################################
     data_1 = (np.array(data_for_subject(npy_label_1, get_similar_indices(class1, jsonPath))))
-    data_1 = apply_cutout_on_dataset(data_1)
     data_2 = (np.array(data_for_subject(npy_label_2, get_similar_indices(class2, jsonPath))))
-    data_2 = apply_cutout_on_dataset(data_2)
     #np.random.shuffle(data_1) 
     #np.random.shuffle(data_2) 
 
@@ -426,9 +441,7 @@ def runSubject(testingSubjects):
     # tuning for subject (currently based on clustered) 
     ###############################################################
     tuning_data_1 = (np.array(data_for_subject(npy_label_1, get_clustered_indices(class1, jsonPath))))
-    tuning_data_1 = apply_cutout_on_dataset(tuning_data_1)
     tuning_data_2 = (np.array(data_for_subject(npy_label_2, get_clustered_indices(class2, jsonPath))))
-    tuning_data_2 = apply_cutout_on_dataset(tuning_data_2)
 
     ###############################################################
     # testing for subject (currently based on clustered) 
