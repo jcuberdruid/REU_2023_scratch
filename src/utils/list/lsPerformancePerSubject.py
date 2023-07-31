@@ -13,13 +13,14 @@ else:
     target = None
 
 
-# gets all the directories in a given path and returns them as an array  
+# gets all the directories in a given path and returns them as an array
 def list_directories(path):
     directories = []
     for entry in os.listdir(path):
         if os.path.isdir(os.path.join(path, entry)):
             directories.append(entry)
     return directories
+
 
 def split_dicts_by_key(arr, key):
     result = {}
@@ -32,6 +33,7 @@ def split_dicts_by_key(arr, key):
 
     arrays = list(result.values())
     return arrays
+
 
 # paths
 perfPath = '../../../logs/tf_perf_logs/'
@@ -52,53 +54,45 @@ for x in output_logs_array:
 
 split = split_dicts_by_key(output_logs_json, "run_note")
 
-minLength = 14
 
 print("#################################")
-print(f"# Runs {minLength} and above")
+print("# Runs above 50")
 print("#################################")
 
-accuracy_data_list = []
+length = 105
+highest_accuracy = [0] * length
+run_notes = ["0"] * length
 
 for x in split:
-    if len(x) >= minLength:
+    if len(x) != 103:
         accuracy_list = [y['accuracy'] for y in x]
         avg_accuracy = sum(accuracy_list) / len(accuracy_list)
-        run_note = str(x[0]['run_note'])
-
-        if target is not None and run_note == target:
-            target_run_note.extend(float(y['accuracy']) for y in x)
-
-        accuracy_data = {
-            'len': len(x),
-            'accuracy': avg_accuracy,
-            'run_note': run_note
-        }
+        for index, y in enumerate(x):
+            if highest_accuracy[index] < float(y['accuracy']):
+                highest_accuracy[index] = float(y['accuracy'])
+                if 'run_note' in y:
+                    run_notes[index] = (str(y['run_note']))
+                else: 
+                    print("unknown")
+                    run_notes.append("Uknown")
         
-        accuracy_data_list.append(accuracy_data)
-
-sorted_accuracy_data = sorted(accuracy_data_list, key=lambda k: k['accuracy'])
-
-for item in sorted_accuracy_data:
-    print(f"{item['len']}, accuracy: {item['accuracy']}", item['run_note'].rjust(15))
-
-if target == None:
-    quit()
-
-print("#################################")
-print(f"# {target} ")
-print("#################################")
 
 
-target_run_note.sort()  # Sort the data in ascending order
 
-# Calculate average for lower 10%
-lower_10_percent = target_run_note[:int(len(target_run_note) * 0.1)]
-lower_10_avg = sum(lower_10_percent) / len(lower_10_percent)
-print("Average (Lower 10%):", lower_10_avg)
+for index, x in enumerate(highest_accuracy):
+    print(f"{index} : {x} : {run_notes[index]}")
 
-# Calculate average for middle 80%
+#highest_accuracy.pop(len(highest_accuracy)-1)
+
+print(sum(highest_accuracy)/len(highest_accuracy))
+
+
+target_run_note = sorted(highest_accuracy)  # Sort the data in ascending order
+
+print(target_run_note)
+
 middle_80_percent = target_run_note[int(len(target_run_note) * 0.1):int(len(target_run_note) * 0.9)]
+
 middle_80_avg = sum(middle_80_percent) / len(middle_80_percent)
 print("Average (Middle 80%):", middle_80_avg)
 
@@ -109,14 +103,3 @@ print("Average (Upper 10%):", upper_10_avg)
 
 avg = sum(target_run_note) / len(target_run_note)
 print("Average (Overall):", avg)
-
-variance = sum((x - avg) ** 2 for x in target_run_note) / len(target_run_note)
-print("Variance:", variance)
-
-data = np.array(target_run_note)
-# Calculate quartiles
-q1 = np.percentile(data, 25)
-q3 = np.percentile(data, 75)
-# Calculate interquartile range
-iqr = q3 - q1
-print("Interquartile range:", iqr)

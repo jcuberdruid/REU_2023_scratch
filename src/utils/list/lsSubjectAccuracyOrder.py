@@ -5,7 +5,25 @@ import json
 import math
 import numpy as np
 import sys
+from scipy.stats import spearmanr
 
+def calculate_order_similarity(arr):
+    ranked_lists = []
+    for sublist in arr:
+        temp_dict = {value : rank for rank, value in enumerate(sorted(set(sublist)), 1)}
+        ranked_list = [temp_dict[i] for i in sublist]
+        ranked_lists.append(ranked_list)
+        
+    # Calculate similarity between all pairs of arrays
+    similarity_matrix = []
+    for i in range(len(ranked_lists)):
+        row = []
+        for j in range(len(ranked_lists)):
+            coefficient, _ = spearmanr(ranked_lists[i], ranked_lists[j])
+            row.append(coefficient)
+        similarity_matrix.append(row)
+    
+    return similarity_matrix
 
 if len(sys.argv) > 1:
     target = sys.argv[1]
@@ -52,71 +70,39 @@ for x in output_logs_array:
 
 split = split_dicts_by_key(output_logs_json, "run_note")
 
-minLength = 14
 
 print("#################################")
-print(f"# Runs {minLength} and above")
+print("# Runs above 10")
 print("#################################")
 
 accuracy_data_list = []
-
+accuracy_run_note = []
 for x in split:
-    if len(x) >= minLength:
+    if len(x) == 103:
         accuracy_list = [y['accuracy'] for y in x]
         avg_accuracy = sum(accuracy_list) / len(accuracy_list)
         run_note = str(x[0]['run_note'])
 
-        if target is not None and run_note == target:
-            target_run_note.extend(float(y['accuracy']) for y in x)
+        x = sorted(x, key=lambda k: k['accuracy'])
+        subjectsByAccuracy = [int(y['testing_subjects'][0]) for y in x]
+        accuracy_data_list.append(subjectsByAccuracy)
 
         accuracy_data = {
             'len': len(x),
             'accuracy': avg_accuracy,
             'run_note': run_note
         }
-        
-        accuracy_data_list.append(accuracy_data)
 
-sorted_accuracy_data = sorted(accuracy_data_list, key=lambda k: k['accuracy'])
+        accuracy_run_note.append(accuracy_data)
+
+sorted_accuracy_data = sorted(accuracy_run_note, key=lambda k: k['accuracy'])
 
 for item in sorted_accuracy_data:
     print(f"{item['len']}, accuracy: {item['accuracy']}", item['run_note'].rjust(15))
 
-if target == None:
-    quit()
 
-print("#################################")
-print(f"# {target} ")
-print("#################################")
+def print_matrix(matrix):
+    for row in matrix:
+        print(" ".join("{:0.2f}".format(cell) for cell in row))
 
-
-target_run_note.sort()  # Sort the data in ascending order
-
-# Calculate average for lower 10%
-lower_10_percent = target_run_note[:int(len(target_run_note) * 0.1)]
-lower_10_avg = sum(lower_10_percent) / len(lower_10_percent)
-print("Average (Lower 10%):", lower_10_avg)
-
-# Calculate average for middle 80%
-middle_80_percent = target_run_note[int(len(target_run_note) * 0.1):int(len(target_run_note) * 0.9)]
-middle_80_avg = sum(middle_80_percent) / len(middle_80_percent)
-print("Average (Middle 80%):", middle_80_avg)
-
-# Calculate average for upper 10%
-upper_10_percent = target_run_note[int(len(target_run_note) * 0.9):]
-upper_10_avg = sum(upper_10_percent) / len(upper_10_percent)
-print("Average (Upper 10%):", upper_10_avg)
-
-avg = sum(target_run_note) / len(target_run_note)
-print("Average (Overall):", avg)
-
-variance = sum((x - avg) ** 2 for x in target_run_note) / len(target_run_note)
-print("Variance:", variance)
-
-data = np.array(target_run_note)
-# Calculate quartiles
-q1 = np.percentile(data, 25)
-q3 = np.percentile(data, 75)
-# Calculate interquartile range
-iqr = q3 - q1
-print("Interquartile range:", iqr)
+print_matrix(calculate_order_similarity(accuracy_data_list))
