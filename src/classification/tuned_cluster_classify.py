@@ -27,14 +27,16 @@ import importlib
 # Parse Args & non-edit Vars
 ##############################################################
 
-model_name = sys.argv[2] 
 subdirectory = "models"
 model_name = model_name.strip(".py")
 module_name = f"{subdirectory}.{model_name}"
 module = importlib.import_module(module_name)
 testSubjects = json.loads(sys.argv[1])
+model_name = sys.argv[2] 
 dataset = sys.argv[3]
 clusterset = sys.argv[4]
+class_files = sys.argv[5] #TODO currently not set to add this argument in the ../main.py 
+
 jsonDir = f"../logs/clustering_logs/{clusterset}/"
 print(jsonDir)
 
@@ -64,58 +66,14 @@ run_note = "tuned_70_30_DS8_kurtosis_30_Jul_28_tuned_with_cutout_5" #XXX remembe
 ##############################################################
 # Data Sources
 ##############################################################
+#pass array of files to include via "class_files" list (see above) 
+#
 
-csv_label_1 = f"../data/datasets/{dataset}/sequences/MI_RLH_T1_annotation.csv"
-npy_label_1 = f"../data/datasets/{dataset}/sequences/MI_RLH_T1.npy"
+training_files = []
+for x in class_files:
+    training_files.append(f"../data/datasets/{dataset}/sequences/MI_RLH_T1.npy")
 
-csv_label_2 = f"../data/datasets/{dataset}/sequences/MI_FF_T2_annotation.csv"
-npy_label_2 = f"../data/datasets/{dataset}/sequences/MI_FF_T2.npy"
-
-training_files = [npy_label_1, npy_label_2]
-
-csv_label_1_testing = f"../data/datasets/{dataset}/sequences/MI_RLH_T1_annotation.csv"
-npy_label_1_testing = f"../data/datasets/{dataset}/sequences/MI_RLH_T1.npy"
-
-csv_label_2_testing = f"../data/datasets/{dataset}/sequences/MI_FF_T2_annotation.csv"
-npy_label_2_testing = f"../data/datasets/{dataset}/sequences/MI_FF_T2.npy"
-
-testing_files = [npy_label_1_testing, npy_label_2_testing]
-
-'''
-csv_label_3 = "../data/datasets/sequences/MI_FF_T1_annotation.csv"
-npy_label_3 = "../data/datasets/sequences/MI_FF_T1.npy"
-
-csv_label_4 = "../data/datasets/sequences/MI_FF_T2_annotation.csv"
-npy_label_4 = "../data/datasets/sequences/MI_FF_T2.npy"
-'''
-
-class DynamicDropoutCallback(Callback): #XXX is meh
-    def __init__(self, threshold=0.1, high_dropout=0.8, low_dropout=0.4):
-        super(DynamicDropoutCallback, self).__init__()
-        self.threshold = threshold
-        self.high_dropout = high_dropout
-        self.low_dropout = low_dropout
-
-    def on_epoch_end(self, epoch, logs=None):
-        if logs is None:
-            logs = {}
-
-        epoch_accuracy = logs.get('accuracy')
-        epoch_val_accuracy = logs.get('val_accuracy')
-
-        if epoch_accuracy is not None and epoch_val_accuracy is not None:
-            delta = abs(epoch_accuracy - epoch_val_accuracy)
-
-            if delta > self.threshold:
-                current_dropout = self.high_dropout
-            elif delta < -self.threshold and epoch_val_accuracy > epoch_accuracy:
-                current_dropout = 0.0
-            else:
-                current_dropout = self.low_dropout
-
-            for layer in self.model.layers:
-                if isinstance(layer, Dropout):
-                    layer.rate = current_dropout
+testing_files = testing_files
 
 def apply_cutout_on_dataset(dataset, cutout_size=2, p=0.25):
     # Dataset shape: (n, 80, 17, 17)
