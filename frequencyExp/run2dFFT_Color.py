@@ -93,7 +93,6 @@ def chunk_each(csv_file):
         row_groups = group_rows_preserve_order(rows, key_columns)
         for chunk in row_groups:
             generate_fft_images(chunk, outputDir)
-            exit(0)
 
 def get_csv_files(directory):
     csv_files = []
