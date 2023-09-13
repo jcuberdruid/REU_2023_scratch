@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import paths
 
 classesPath = paths.dirBase+"classes/"
-outputDir = paths.dirBase+"ffts/"
+outputDir = paths.dirBase+"fft_grey/"
 
 def generate_fft_images(data, output_directory):
     if len(data) != 641:
@@ -41,7 +41,9 @@ def generate_fft_images(data, output_directory):
         fft_data_log = np.uint8((fft_data_log / fft_data_log.max()) * 255)
         plt.imshow(fft_data_log, cmap='gray')
         plt.axis('off')
-        plt.savefig(os.path.join(output_directory, filename))
+        plt.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
+        plt.margins(0, 0)
+        plt.savefig(os.path.join(output_directory, filename),  bbox_inches='tight', pad_inches=0)
         plt.close()
 
 
@@ -69,7 +71,6 @@ def chunk_each(csv_file):
         row_groups = group_rows_preserve_order(rows, key_columns)
         for chunk in row_groups:
             generate_fft_images(chunk, outputDir)
-            exit(0)
 
 def get_csv_files(directory):
     csv_files = []
@@ -79,7 +80,9 @@ def get_csv_files(directory):
     return csv_files
 
 csv_files_list = get_csv_files(classesPath)
+#csv_files_list = {'MI_RLH_T2.csv'} 
+
 
 for x in csv_files_list:
-    print(f"proccessing file {x}")
+    print(f"processing file {x}")
     chunk_each(x)
